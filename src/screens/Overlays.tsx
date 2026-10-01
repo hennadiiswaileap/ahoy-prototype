@@ -1,4 +1,4 @@
-import { X, MessageCircle, Send, Phone, UserCheck, UserPlus, Camera, Anchor, Globe, Users, EyeOff, Eye, SlidersHorizontal, RotateCcw, Map as MapIcon, WifiOff, FastForward, Plus, Info, Check, Sailboat, User, Trash2, LogOut, Bell } from 'lucide-react';
+import { X, MessageCircle, Send, Phone, UserCheck, UserPlus, Camera, Anchor, Clock, Globe, Users, EyeOff, Eye, SlidersHorizontal, RotateCcw, Map as MapIcon, WifiOff, FastForward, Plus, Info, Check, Sailboat, User, Trash2, LogOut, Bell } from 'lucide-react';
 import { useApp, type Visibility } from '../store';
 import { APP } from '../config';
 import { EXTRA_BOATS, type ContactKind } from '../demoData';
@@ -41,9 +41,9 @@ export function BoatCard() {
               <div className="text-muted">{b.boat} · {b.model}</div>
             </div>
           </div>
-          <div className="self-start rounded-[14px] bg-mist px-3 py-2.5"><b className="block whitespace-nowrap text-lg font-semibold tabular-nums">{inf.seenMin < 1 ? 'now' : `${inf.seenMin} min`}</b><span className="text-[13px] text-muted">Last update</span></div>
-          <div className="flex flex-wrap gap-4 text-sm text-muted">
-            <span className="flex items-center gap-1.5"><Anchor size={15} />Home port {b.home}</span>
+          <div className="flex items-center gap-4 text-sm text-muted">
+            <span className="flex min-w-0 items-center gap-1.5"><Anchor size={15} className="shrink-0" /><span className="truncate">Home port {b.home}</span></span>
+            <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap tabular-nums"><Clock size={15} /><span className="sr-only">Last update </span>{inf.seenMin < 1 ? 'Just now' : `${inf.seenMin} min ago`}</span>
           </div>
           <Button onClick={() => s.set({ contactOpen: true })}><MessageCircle size={22} strokeWidth={1.75} />Contact {b.name}</Button>
           <div className="grid grid-cols-2 gap-2.5">
