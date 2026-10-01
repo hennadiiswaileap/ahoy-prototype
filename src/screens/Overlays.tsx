@@ -1,4 +1,4 @@
-import { X, MessageCircle, Send, Phone, UserCheck, UserPlus, Camera, Anchor, Navigation2, Globe, Users, EyeOff, Eye, SlidersHorizontal, RotateCcw, Map as MapIcon, WifiOff, FastForward, Plus, Info, Check, Sailboat, User, Trash2, LogOut, Bell } from 'lucide-react';
+import { X, MessageCircle, Send, Phone, UserCheck, UserPlus, Camera, Anchor, Globe, Users, EyeOff, Eye, SlidersHorizontal, RotateCcw, Map as MapIcon, WifiOff, FastForward, Plus, Info, Check, Sailboat, User, Trash2, LogOut, Bell } from 'lucide-react';
 import { useApp, type Visibility } from '../store';
 import { APP } from '../config';
 import { EXTRA_BOATS, type ContactKind } from '../demoData';
@@ -41,18 +41,9 @@ export function BoatCard() {
               <div className="text-muted">{b.boat} · {b.model}</div>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              [inf.distLabel, `${inf.bearingLabel} · ${Math.round(inf.bearing)}°`],
-              [inf.knots ? `${inf.knots.toFixed(1)} kn` : '0 kn', inf.knots ? 'Speed' : b.type === 'motor' ? 'Moored' : 'At anchor'],
-              [inf.seenMin < 1 ? 'now' : `${inf.seenMin} min`, 'Last update'],
-            ].map(([v, l]) => (
-              <div key={l} className="rounded-[14px] bg-mist px-3 py-2.5"><b className="block whitespace-nowrap text-lg font-semibold tabular-nums">{v}</b><span className="text-[13px] text-muted">{l}</span></div>
-            ))}
-          </div>
+          <div className="self-start rounded-[14px] bg-mist px-3 py-2.5"><b className="block whitespace-nowrap text-lg font-semibold tabular-nums">{inf.seenMin < 1 ? 'now' : `${inf.seenMin} min`}</b><span className="text-[13px] text-muted">Last update</span></div>
           <div className="flex flex-wrap gap-4 text-sm text-muted">
             <span className="flex items-center gap-1.5"><Anchor size={15} />Home port {b.home}</span>
-            <span className="flex items-center gap-1.5"><Navigation2 size={15} />Heading {Math.round(inf.pos.heading)}°</span>
           </div>
           <Button onClick={() => s.set({ contactOpen: true })}><MessageCircle size={22} strokeWidth={1.75} />Contact {b.name}</Button>
           <div className="grid grid-cols-2 gap-2.5">
