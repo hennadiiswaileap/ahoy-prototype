@@ -1,4 +1,4 @@
-import { X, MessageCircle, Send, Phone, UserCheck, UserPlus, Camera, Anchor, Clock, Globe, Users, EyeOff, Eye, SlidersHorizontal, RotateCcw, Map as MapIcon, WifiOff, FastForward, Plus, Info, Check, Sailboat, User, Trash2, LogOut, Bell } from 'lucide-react';
+import { X, MessageCircle, Phone, UserCheck, UserPlus, Camera, Anchor, Clock, Globe, Users, EyeOff, Eye, SlidersHorizontal, RotateCcw, Map as MapIcon, WifiOff, FastForward, Plus, Info, Check, Sailboat, User, Trash2, LogOut, Bell } from 'lucide-react';
 import { useApp, type Visibility } from '../store';
 import { APP } from '../config';
 import { EXTRA_BOATS, type ContactKind } from '../demoData';
@@ -9,7 +9,6 @@ import { avatarBg } from './MapScreen';
 
 const CONTACT: Record<ContactKind, { label: string; Icon: typeof Phone }> = {
   whatsapp: { label: 'WhatsApp', Icon: MessageCircle },
-  telegram: { label: 'Telegram', Icon: Send },
   phone: { label: 'Call', Icon: Phone },
 };
 
@@ -165,7 +164,7 @@ export function DemoPanel() {
 
 const TOAST_ICONS: Record<string, typeof X> = {
   info: Info, check: Check, sailboat: Sailboat, user: User, 'user-check': UserCheck, camera: Camera, eye: Eye, 'eye-off': EyeOff,
-  trash: Trash2, logout: LogOut, message: MessageCircle, whatsapp: MessageCircle, telegram: Send, phone: Phone, bell: Bell,
+  trash: Trash2, logout: LogOut, message: MessageCircle, whatsapp: MessageCircle, phone: Phone, bell: Bell,
 };
 export function Toast() {
   const t = useApp((s) => s.toast);

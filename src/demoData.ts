@@ -6,7 +6,7 @@
  * at least ~120 m off land. `rot` is in radians (east = 0, clockwise on screen).
  */
 
-export type ContactKind = 'whatsapp' | 'telegram' | 'phone';
+export type ContactKind = 'whatsapp' | 'phone';
 export type BoatType = 'sail' | 'motor';
 export type SceneKind = 'day' | 'sunset' | 'dawn' | 'harbour' | 'lighthouse' | 'race';
 
@@ -46,17 +46,17 @@ export const USER_KNOTS = 4.2;
 
 export const PEOPLE: Person[] = [
   { id: 'b1', name: 'Frauke', boat: 'Windspiel', model: 'Hanse 388', knots: 5.8, friend: true, contact: 'whatsapp', home: 'Kiel-Schilksee', scene: 'sunset', hull: '#F4F1EA', dir: 1, reportEvery: 150, route: { center: [10.21842, 54.45648], rx: 1292, ry: 997, rot: 1.848 } },
-  { id: 'b2', name: 'Jens', boat: 'Seeschwalbe', model: 'Bavaria 34', knots: 4.6, contact: 'telegram', home: 'Strande', scene: 'day', hull: '#0B2545', dir: -1, reportEvery: 240, phase: 2.6, route: { center: [10.20174, 54.42712], rx: 899, ry: 716, rot: 1.358 } },
+  { id: 'b2', name: 'Jens', boat: 'Seeschwalbe', model: 'Bavaria 34', knots: 4.6, contact: 'whatsapp', home: 'Strande', scene: 'day', hull: '#0B2545', dir: -1, reportEvery: 240, phase: 2.6, route: { center: [10.20174, 54.42712], rx: 899, ry: 716, rot: 1.358 } },
   { id: 'b3', name: 'Henrik', boat: 'Nordlicht', model: 'X-Yachts X4.3', knots: 6.7, friend: true, contact: 'whatsapp', home: 'Sønderborg', scene: 'race', hull: '#1D5C96', dir: 1, reportEvery: 90, route: { center: [10.2416, 54.42902], rx: 1395, ry: 1095, rot: 0.864 } },
   { id: 'b4', name: 'Søren', boat: 'Havørn', model: 'Hallberg-Rassy 37', knots: 6.2, contact: 'phone', home: 'Aarhus', scene: 'lighthouse', hull: '#F4F1EA', dir: -1, reportEvery: 300, route: { center: [10.2568, 54.46829], rx: 1988, ry: 1531, rot: 2.928 } },
-  { id: 'b5', name: 'Mette', boat: 'Lille Ven', model: 'Dehler 34', knots: 0, staleMinutes: 8, heading: 40, contact: 'telegram', home: 'Svendborg', scene: 'harbour', hull: '#7A2E2A', dir: 1, reportEvery: 0, route: { center: [10.21801, 54.412], rx: 0, ry: 0, rot: 0 } },
+  { id: 'b5', name: 'Mette', boat: 'Lille Ven', model: 'Dehler 34', knots: 0, staleMinutes: 8, heading: 40, contact: 'phone', home: 'Svendborg', scene: 'harbour', hull: '#7A2E2A', dir: 1, reportEvery: 0, route: { center: [10.21801, 54.412], rx: 0, ry: 0, rot: 0 } },
   { id: 'b6', name: 'Anke', boat: 'Sturmvogel', model: 'Bavaria 37', knots: 3.2, contact: 'whatsapp', home: 'Laboe', scene: 'day', hull: '#F4F1EA', dir: 1, reportEvery: 200, route: { center: [10.19819, 54.38738], rx: 594, ry: 329, rot: 2.534 } },
-  { id: 'b7', name: 'Malte', boat: 'Fjordkind', model: 'Sunbeam 32', knots: 4.1, contact: 'telegram', home: 'Kiel-Holtenau', scene: 'dawn', hull: '#0B2545', dir: -1, reportEvery: 120, route: { center: [10.17938, 54.37291], rx: 694, ry: 544, rot: 1.787 } },
+  { id: 'b7', name: 'Malte', boat: 'Fjordkind', model: 'Sunbeam 32', knots: 4.1, contact: 'whatsapp', home: 'Kiel-Holtenau', scene: 'dawn', hull: '#0B2545', dir: -1, reportEvery: 120, route: { center: [10.17938, 54.37291], rx: 694, ry: 544, rot: 1.787 } },
   { id: 'b8', name: 'Wiebke', boat: 'Kleine Freiheit', model: 'Hanse 348', knots: 3.6, friend: true, contact: 'whatsapp', home: 'Kiel-Düsternbrook', scene: 'harbour', hull: '#F4F1EA', dir: 1, reportEvery: 180, route: { center: [10.16407, 54.34474], rx: 598, ry: 464, rot: 1.331 } },
   { id: 'b9', name: 'Torben', boat: 'Gezeitenspiel', model: 'Dufour 360', knots: 0, staleMinutes: 12, heading: 200, contact: 'phone', home: 'Flensburg', scene: 'harbour', hull: '#1D5C96', dir: 1, reportEvery: 0, route: { center: [10.164, 54.339], rx: 0, ry: 0, rot: 0 } },
   { id: 'b10', name: 'Kirsten', boat: 'Sonnenwende', model: 'Nimbus 305 Coupé', type: 'motor', knots: 6.8, contact: 'phone', home: 'Kiel-Wik', scene: 'day', hull: '#F4F1EA', dir: -1, reportEvery: 100, route: { center: [10.16398, 54.36655], rx: 595, ry: 473, rot: 3.084 } },
   { id: 'b11', name: 'Lars', boat: 'Albatros', model: 'Elan E4', knots: 6.9, contact: 'whatsapp', home: 'Faaborg', scene: 'race', hull: '#F4F1EA', dir: 1, reportEvery: 260, route: { center: [10.2229, 54.48148], rx: 1789, ry: 1407, rot: 1.557 } },
-  { id: 'b12', name: 'Ida', boat: 'Mågen', model: 'X-Yachts X4.0', knots: 5.1, contact: 'telegram', home: 'Marstal', scene: 'lighthouse', hull: '#0B2545', dir: -1, reportEvery: 140, route: { center: [10.20077, 54.4412], rx: 885, ry: 664, rot: 3.106 } },
+  { id: 'b12', name: 'Ida', boat: 'Mågen', model: 'X-Yachts X4.0', knots: 5.1, contact: 'phone', home: 'Marstal', scene: 'lighthouse', hull: '#0B2545', dir: -1, reportEvery: 140, route: { center: [10.20077, 54.4412], rx: 885, ry: 664, rot: 3.106 } },
   { id: 'b13', name: 'Nils', boat: 'Nordstern', model: 'Greenline 33', type: 'motor', knots: 0, staleMinutes: 14, heading: 160, contact: 'phone', home: 'Kiel-Düsternbrook', scene: 'harbour', hull: '#F4F1EA', dir: 1, reportEvery: 0, route: { center: [10.166, 54.353], rx: 0, ry: 0, rot: 0 } },
   { id: 'b14', name: 'Freya', boat: 'Blauwal', model: 'Hallberg-Rassy 342', knots: 4.9, contact: 'whatsapp', home: 'Heiligenhafen', scene: 'sunset', hull: '#1D5C96', dir: 1, reportEvery: 210, route: { center: [10.24422, 54.44162], rx: 1178, ry: 939, rot: 1.372 } },
 ];
@@ -64,7 +64,7 @@ export const PEOPLE: Person[] = [
 /** Boats the demo panel can drop in near the user. They sail a scaled copy of the user's (open-water) loop. */
 export const EXTRA_BOATS: (Omit<Person, 'route'> & { scale: number })[] = [
   { id: 'x1', name: 'Sune', boat: 'Sommerbris', model: 'Bavaria C38', knots: 4.4, contact: 'whatsapp', home: 'Middelfart', scene: 'day', hull: '#F4F1EA', dir: 1, reportEvery: 120, scale: 0.55 },
-  { id: 'x2', name: 'Gesche', boat: 'Flaschenpost', model: 'Hanse 315', knots: 3.9, contact: 'telegram', home: 'Eckernförde', scene: 'dawn', hull: '#0B2545', dir: -1, reportEvery: 160, scale: 0.35 },
+  { id: 'x2', name: 'Gesche', boat: 'Flaschenpost', model: 'Hanse 315', knots: 3.9, contact: 'whatsapp', home: 'Eckernförde', scene: 'dawn', hull: '#0B2545', dir: -1, reportEvery: 160, scale: 0.35 },
   { id: 'x3', name: 'Ole', boat: 'Kattegat', model: 'Dehler 38', knots: 5.0, contact: 'phone', home: 'Kerteminde', scene: 'sunset', hull: '#1D5C96', dir: 1, reportEvery: 200, scale: 0.75 },
 ];
 

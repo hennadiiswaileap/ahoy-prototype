@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronDown, Phone, MessageCircle, Send, Info, Sailboat, Ship, Eye, LocateFixed, ShieldCheck, Users, Bell, Delete } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Phone, MessageCircle, Info, Sailboat, Ship, Eye, LocateFixed, ShieldCheck, Users, Bell, Delete } from 'lucide-react';
 import { useApp } from '../store';
 import { APP } from '../config';
 import { COUNTRY_CODES, DEMO_PHONE, DEMO_CODE, type ContactKind } from '../demoData';
@@ -209,7 +209,6 @@ export function CodeScreen() {
 
 const CONTACT_META: Record<ContactKind, { label: string; Icon: typeof Phone; field: string; ph: string }> = {
   whatsapp: { label: 'WhatsApp', Icon: MessageCircle, field: 'WhatsApp number', ph: '+49 151 2345 6789' },
-  telegram: { label: 'Telegram', Icon: Send, field: 'Telegram handle', ph: '@username' },
   phone: { label: 'Phone', Icon: Phone, field: 'Phone number', ph: '+49 151 2345 6789' },
 };
 export { CONTACT_META };
@@ -256,7 +255,7 @@ export function ProfileForm() {
           <span className="text-sm font-semibold">How should sailors reach you?</span>
           <Segmented
             value={p.contact}
-            onChange={(v) => upd({ contact: v, handle: v === 'telegram' ? '' : p.handle.startsWith('+') ? p.handle : `${countryCode} ${phone || DEMO_PHONE}` })}
+            onChange={(v) => upd({ contact: v, handle: p.handle.startsWith('+') ? p.handle : `${countryCode} ${phone || DEMO_PHONE}` })}
             options={(Object.keys(CONTACT_META) as ContactKind[]).map((k) => { const M = CONTACT_META[k]; return { value: k, label: M.label, icon: <M.Icon size={18} /> }; })}
           />
           <Input className="mt-1" aria-label={CONTACT_META[p.contact].field} placeholder={CONTACT_META[p.contact].ph} value={p.handle} onChange={(e) => upd({ handle: e.target.value })} />
