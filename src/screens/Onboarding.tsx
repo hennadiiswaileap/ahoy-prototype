@@ -84,9 +84,9 @@ export function Welcome() {
 
 export function SignIn() {
   const { set } = useApp();
-  const [busy, setBusy] = useState<null | 'apple' | 'google'>(null);
-  const go = (k: 'apple' | 'google') => {
-    setBusy(k);
+  const [busy, setBusy] = useState(false);
+  const go = () => {
+    setBusy(true);
     setTimeout(() => set({ screen: 'phone' }), 1300);
   };
   const Spin = () => <span className="h-[18px] w-[18px] animate-spin rounded-full border-[2.5px] border-current border-r-transparent" />;
@@ -98,8 +98,7 @@ export function SignIn() {
         <p className="max-w-[290px] text-[17px] text-muted">Sign in to see the sailors around you and let them reach you.</p>
       </div>
       <div className="flex flex-col gap-3">
-        <Button variant="dark" disabled={!!busy} onClick={() => go('apple')}>{busy === 'apple' ? <><Spin />Signing in…</> : 'Continue with Apple'}</Button>
-        <Button variant="secondary" disabled={!!busy} onClick={() => go('google')}>{busy === 'google' ? <><Spin />Signing in…</> : 'Continue with Google'}</Button>
+        <Button variant="dark" disabled={busy} onClick={go}>{busy ? <><Spin />Signing in…</> : 'Continue with Google'}</Button>
         <p className="mt-1.5 text-center text-[13px] text-muted">By continuing you agree to the Terms of Use and Privacy Policy.</p>
       </div>
     </Screen>
