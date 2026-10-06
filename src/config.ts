@@ -3,9 +3,9 @@
  * map settings here. Colours live in src/theme.ts.
  */
 export const APP = {
-  name: 'Ahoy',
+  name: 'WayMate',
   tagline: 'See who’s sailing near you. Reach any boat in one tap.',
-  version: '0.2 prototype',
+  version: '0.3 prototype',
 };
 
 export const SIM = {

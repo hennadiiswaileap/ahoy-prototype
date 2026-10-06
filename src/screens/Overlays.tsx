@@ -4,7 +4,7 @@ import { APP } from '../config';
 import { EXTRA_BOATS, MARINAS, type ContactKind } from '../demoData';
 import type { ThemeMode } from '../theme';
 import { Scene } from '../components/art';
-import { Avatar, Badge, Button, IconButton, MvpBadge, Sheet, Switch, cx } from '../components/ui';
+import { Avatar, Badge, Button, IconButton, MvpBadge, Sheet, Switch, SwitchTrack, cx } from '../components/ui';
 import { sharedPrivateGroups, useBoatInfos } from '../hooks';
 import { clock, posAt, userTrack, distanceM, bearingDeg, compass, distLabel } from '../sim';
 import { avatarBg } from './MapScreen';
@@ -24,7 +24,7 @@ export function BoatCard() {
   const scopeB = s.scope === 'b';
   const fr = !scopeB && !!s.friends[b.id];
   const shared = scopeB ? sharedPrivateGroups(s.groups, b.id) : [];
-  const ring = scopeB ? (shared.length ? 'shadow-[0_0_0_4px_var(--surface),0_0_0_6px_var(--teak)]' : null) : fr ? 'shadow-[0_0_0_4px_var(--surface),0_0_0_6px_var(--ocean)]' : null;
+  const ring = scopeB ? (shared.length ? 'shadow-[0_0_0_4px_var(--surface),0_0_0_6px_var(--teak)]' : null) : fr ? 'shadow-[0_0_0_4px_var(--surface),0_0_0_6px_var(--teak)]' : null;
   const close = () => s.set({ selectedId: null, contactOpen: false });
   return (
     <>
@@ -41,8 +41,8 @@ export function BoatCard() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[22px] font-semibold">{b.name}</span>
                 {fr && <Badge><UserCheck size={14} />Friend</Badge>}
-                {shared.slice(0, 2).map((g) => <Badge key={g.id} tone="group">{g.name}</Badge>)}
-                {inf.live && <Badge tone="live"><span className="live-dot h-1.5 w-1.5 rounded-full bg-on-accent" />Live</Badge>}
+                {shared.slice(0, 2).map((g) => <Badge key={g.id} tone="group"><Users size={12} />{g.name}</Badge>)}
+                {inf.live && <Badge tone="live"><span className="live-dot h-1.5 w-1.5 rounded-full bg-sail" />Live</Badge>}
               </div>
               <div className="truncate text-muted">{b.activity ?? `${b.boat} · ${b.model}`}</div>
             </div>
@@ -73,7 +73,7 @@ export function BoatCard() {
                 <button key={k} onClick={() => { s.set({ contactOpen: false }); s.showToast(k === 'phone' ? `Calling ${b.name}…` : `Opening ${C.label} for ${b.name}…`, k); }} className="flex min-h-16 w-full items-center gap-3.5 rounded-2xl bg-fill px-3.5 py-3 text-left">
                   <span className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-surface text-ocean"><C.Icon size={22} strokeWidth={1.75} /></span>
                   <span className="flex-1"><b className="block font-semibold">{C.label}</b><span className="text-sm text-muted">{k === 'phone' ? `Ring ${b.name} directly` : `Message ${b.name} on ${C.label}`}</span></span>
-                  {b.contact === k && <Badge tone="ok">Preferred</Badge>}
+                  {b.contact === k && <Badge tone="ok"><Check size={12} strokeWidth={2.5} />Preferred</Badge>}
                 </button>
               );
             })}
@@ -95,16 +95,16 @@ export function MarinaSheet() {
   return (
     <Sheet onClose={() => s.set({ marinaId: null })} title={m.name} label={`${m.name} marina`}>
       <div className="flex flex-col gap-3 px-5 pb-8">
-        <p className="-mt-1 flex items-center gap-1.5 text-muted"><Anchor size={16} className="text-ocean" />Marina · {where}</p>
+        <p className="-mt-1 flex items-center gap-1.5 text-muted"><Anchor size={16} className="text-teak-strong" />Marina · {where}</p>
         <span className="mt-1 text-sm font-semibold">Upcoming</span>
         {m.events.slice(0, 2).map((e) => (
           <div key={e.title} className="flex items-center gap-3 rounded-xl bg-fill px-3.5 py-3">
-            <CalendarDays size={20} className="shrink-0 text-ocean" />
+            <CalendarDays size={20} className="shrink-0 text-teak-strong" />
             <span className="text-[15px]">{e.title} · <span className="text-muted">{e.when}</span></span>
           </div>
         ))}
         <div className="mt-1 flex items-start gap-3 rounded-2xl bg-teak/12 px-3.5 py-3 ring-1 ring-inset ring-teak/40">
-          <Wrench size={20} className="mt-0.5 shrink-0 text-teak" />
+          <Wrench size={20} className="mt-0.5 shrink-0 text-teak-strong" />
           <span className="text-[15px]"><b className="block font-semibold">Coming soon: port services</b><span className="text-muted">Berths, fuel and harbour office details will live here.</span></span>
         </div>
       </div>
@@ -147,7 +147,7 @@ export function VisibilityOptions({ list }: { list?: boolean }) {
       {VIS[s.scope].map((o) => {
         const on = s.visibility === o.k;
         return (
-          <div key={o.k} className={cx(list ? 'border-b border-line last:border-b-0' : cx('overflow-hidden rounded-2xl', on ? 'bg-surface shadow-[inset_0_0_0_2px_var(--ink)]' : 'bg-fill'))}>
+          <div key={o.k} className={cx(list ? 'border-b border-line last:border-b-0' : cx('overflow-hidden rounded-2xl', on ? 'bg-surface shadow-[inset_0_0_0_2px_var(--select)]' : 'bg-fill'))}>
             <button role="radio" aria-checked={on} disabled={!s.sharing} onClick={() => a.pick(o.k)} className={cx('flex min-h-16 w-full items-center gap-3.5 text-left disabled:opacity-45', list ? 'px-4 py-3' : 'px-3.5 py-3')}>
               {list ? <Radio on={on} /> : <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-surface text-ocean"><o.Icon size={22} strokeWidth={1.75} /></span>}
               <span className="flex-1"><b className="flex items-center gap-1.5 font-semibold">{o.t}{o.k === 'groups' && <MvpBadge />}</b><span className="text-sm text-muted">{o.d}</span></span>
@@ -161,7 +161,7 @@ export function VisibilityOptions({ list }: { list?: boolean }) {
                     <button key={g.id} role="checkbox" aria-checked={picked} onClick={() => s.toggleVisibleGroup(g.id)} className="flex min-h-12 items-center gap-3 border-t border-line py-2 text-left">
                       <GroupAvatar g={g} size={30} />
                       <span className="flex-1 text-[15px] font-semibold">{g.name}</span>
-                      <span className={cx('flex h-6 w-6 items-center justify-center rounded-md border-2', picked ? 'border-ink bg-ink text-on-ink' : 'border-sky')}>{picked && <Check size={16} strokeWidth={3} />}</span>
+                      <span className={cx('flex h-6 w-6 items-center justify-center rounded-md border-2', picked ? 'border-select bg-select text-on-select' : 'border-outline')}>{picked && <Check size={16} strokeWidth={3} />}</span>
                     </button>
                   );
                 })}
@@ -184,7 +184,7 @@ export function VisibilitySheet() {
       <div className="flex flex-col gap-3 overflow-y-auto px-5 pb-8">
         <Switch on={s.sharing} onToggle={a.toggleShare} label="Share my location" sub={s.sharing ? 'Your boat is on the map' : 'You are hidden from everyone'} />
         <VisibilityOptions />
-        <Button variant="dark" onClick={close}>Done</Button>
+        <Button onClick={close}>Done</Button>
       </div>
     </Sheet>
   );
@@ -192,8 +192,8 @@ export function VisibilitySheet() {
 
 export function Radio({ on }: { on: boolean }) {
   return (
-    <span className={cx('flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2', on ? 'border-ink' : 'border-sky')}>
-      {on && <span className="h-3 w-3 rounded-full bg-ink" />}
+    <span className={cx('flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2', on ? 'border-select' : 'border-outline')}>
+      {on && <span className="h-3 w-3 rounded-full bg-select" />}
     </span>
   );
 }
@@ -209,7 +209,7 @@ export function ConfirmDialog() {
         <p className="text-[15px] text-muted">{del ? `Your profile, ${s.scope === 'b' ? 'groups' : 'friends'} and position history will be removed for good. This cannot be undone.` : 'You will stop sharing your location until you sign in again.'}</p>
         <div className="mt-2 grid grid-cols-2 gap-2.5">
           <Button variant="secondary" size="md" onClick={() => s.set({ confirm: null })}>Cancel</Button>
-          <Button variant={del ? 'danger' : 'dark'} size="md" onClick={() => { s.resetAll(); useApp.getState().showToast(del ? 'Account deleted' : 'Signed out', del ? 'trash' : 'logout'); }}>{del ? 'Delete' : 'Sign out'}</Button>
+          <Button variant={del ? 'danger' : 'primary'} size="md" onClick={() => { s.resetAll(); useApp.getState().showToast(del ? 'Account deleted' : 'Signed out', del ? 'trash' : 'logout'); }}>{del ? 'Delete' : 'Sign out'}</Button>
         </div>
       </div>
     </div>
@@ -220,9 +220,9 @@ function PanelSwitch<T extends string>({ label, value, options, onChange }: { la
   return (
     <div className="flex items-center gap-2.5">
       <span className="w-[52px] shrink-0 pl-1.5 text-[13px] font-semibold opacity-70">{label}</span>
-      <div className="flex flex-1 gap-1 rounded-xl bg-on-ink/10 p-1" role="radiogroup" aria-label={label}>
+      <div className="flex flex-1 gap-1 rounded-xl bg-white/10 p-1" role="radiogroup" aria-label={label}>
         {options.map(([v, l]) => (
-          <button key={v} role="radio" aria-checked={value === v} onClick={() => onChange(v)} className={cx('h-9 flex-1 rounded-lg text-[13px] font-semibold', value === v ? 'bg-on-ink text-ink' : 'text-on-ink/75')}>{l}</button>
+          <button key={v} role="radio" aria-checked={value === v} onClick={() => onChange(v)} className={cx('h-9 flex-1 rounded-lg text-[13px] font-semibold', value === v ? 'bg-sky text-sail' : 'text-white/75')}>{l}</button>
         ))}
       </div>
     </div>
@@ -235,18 +235,22 @@ export function DemoPanel() {
   const next = EXTRA_BOATS[s.extras.length];
   const ski = s.scenario === 'ski';
   const Btn = ({ on, onClick, Icon, children, wide, disabled }: { on?: boolean; onClick: () => void; Icon: typeof X; children: React.ReactNode; wide?: boolean; disabled?: boolean }) => (
-    <button onClick={onClick} disabled={disabled} className={cx('flex min-h-[48px] items-center gap-2.5 rounded-[14px] px-3 py-2 text-left text-sm font-semibold leading-tight disabled:opacity-40', on ? 'bg-dehler-red text-on-accent' : 'bg-on-ink/10 text-on-ink', wide && 'col-span-2')}>
+    <button onClick={onClick} disabled={disabled} className={cx('flex min-h-[48px] items-center gap-2.5 rounded-[14px] px-3 py-2 text-left text-sm font-semibold leading-tight disabled:opacity-40', on ? 'bg-sky text-sail' : 'bg-white/10 text-white', wide && 'col-span-2')}>
       <Icon size={20} strokeWidth={1.75} className={on ? '' : 'opacity-70'} />{children}
     </button>
   );
   return (
-    <div role="dialog" aria-label="Demo controls" className="absolute inset-x-3 bottom-[90px] z-[55] flex animate-slide-up flex-col gap-2 rounded-[20px] bg-ink p-3.5 text-on-ink shadow-[0_18px_40px_var(--shadow-lg)]">
+    <div role="dialog" aria-label="Demo controls" className="absolute inset-x-3 bottom-[90px] z-[55] flex animate-slide-up flex-col gap-2 rounded-[20px] bg-sail p-3.5 text-white shadow-[0_18px_40px_var(--shadow-lg)] ring-1 ring-white/10">
       <div className="flex items-center justify-between pl-1.5">
         <b className="flex items-center gap-2 text-[15px]"><SlidersHorizontal size={18} />Demo controls</b>
-        <IconButton label="Close demo controls" className="text-on-ink" onClick={() => s.set({ demoOpen: false })}><X size={22} /></IconButton>
+        <IconButton label="Close demo controls" onChrome onClick={() => s.set({ demoOpen: false })}><X size={22} /></IconButton>
       </div>
       <PanelSwitch<Scope> label="Scope" value={s.scope} options={[['a', 'A (MVP)'], ['b', 'B (MVP+)']]} onChange={(v) => s.setScope(v)} />
       <PanelSwitch<ThemeMode> label="Theme" value={s.theme} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} onChange={(v) => s.setTheme(v)} />
+      <button role="switch" aria-checked={s.badges} onClick={() => s.setBadges(!s.badges)} className="flex h-11 items-center gap-2.5 rounded-xl bg-white/10 px-3 text-left text-[13px] font-semibold">
+        <span className="flex-1">Show scope badges<span className="block text-[11px] font-normal opacity-70">Off hides MVP+, Coming soon and demo hints (focus groups)</span></span>
+        <SwitchTrack small on={s.badges} />
+      </button>
       <div className="mt-1 grid grid-cols-2 gap-2">
         <Btn Icon={RotateCcw} onClick={() => s.resetAll()}>Reset onboarding</Btn>
         <Btn Icon={MapIcon} onClick={() => { s.set({ demoOpen: false, selectedId: null, subpage: null, chatId: null, groupId: null, visSheetOpen: false }); if (s.screen !== 'app') s.enterApp(); else s.set({ tab: 'map', follow: true }); }}>Jump to map</Btn>
@@ -268,8 +272,8 @@ export function Toast() {
   if (!t) return null;
   const Icon = TOAST_ICONS[t.icon ?? 'info'] ?? Info;
   return (
-    <div key={t.id} role="status" className="absolute top-[72px] left-1/2 z-[70] flex max-w-[calc(100%-24px)] -translate-x-1/2 animate-toast items-center gap-2 rounded-full bg-ink px-[18px] py-3 text-[15px] font-semibold text-on-ink shadow-[0_10px_30px_var(--shadow-lg)]">
-      <Icon size={18} className="shrink-0 opacity-75" /><span className="truncate">{t.msg}</span>
+    <div key={t.id} role="status" className="absolute top-[72px] left-1/2 z-[70] flex w-max max-w-[calc(100%-24px)] -translate-x-1/2 animate-toast items-center gap-2.5 rounded-[20px] bg-ink px-[18px] py-3 text-[15px] font-semibold leading-snug text-on-ink shadow-[0_10px_30px_var(--shadow-lg)]">
+      <Icon size={18} className="shrink-0 opacity-75" /><span>{t.msg}</span>
     </div>
   );
 }

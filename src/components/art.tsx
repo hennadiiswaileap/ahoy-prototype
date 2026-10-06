@@ -3,19 +3,23 @@ import { Anchor, Sailboat, Compass, LifeBuoy } from 'lucide-react';
 
 /** Theme-aware colours for inline SVG (CSS variables written by src/theme.ts). */
 const C = {
-  ink: 'var(--ink)', surface: 'var(--surface)', teak: 'var(--teak)', red: 'var(--dehler-red)', ocean: 'var(--ocean)',
-  sky: 'var(--sky)', muted: 'var(--muted)', success: 'var(--success)', onInk: 'var(--on-ink)',
+  ink: 'var(--ink)', surface: 'var(--surface)', teak: 'var(--teak)', ocean: 'var(--ocean)', accent: 'var(--accent)',
+  sky: 'var(--sky)', muted: 'var(--muted)', select: 'var(--select)', onSelect: 'var(--on-select)',
 };
 
+/**
+ * The client's line-art logo, for brand moments only (welcome, splash, desktop panel, app icon).
+ * Never a map marker. The artwork is light blue, so on light surfaces it is recoloured to Ocean
+ * through a CSS mask; `original` keeps the artwork as drawn and belongs on near-black.
+ */
+export function BrandArt({ tone = 'ocean', className }: { tone?: 'ocean' | 'sky' | 'original'; className?: string }) {
+  if (tone === 'original') return <img src="/waymate-logo.png" alt="WayMate" className={className} />;
+  return <span role="img" aria-label="WayMate" className={`brand-mask aspect-[768/530] ${className ?? ''}`} style={{ backgroundColor: tone === 'sky' ? 'var(--sky)' : 'var(--ocean)' }} />;
+}
+
+/** Small round logo (the app icon artwork with thicker lines, so it reads at button size). */
 export function LogoMark({ size = 34 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 34 34" width={size} height={size} aria-hidden="true">
-      <circle cx="17" cy="17" r="17" fill={C.ink} />
-      <path d="M17.5 6.5 V22 L25.5 22 Z" fill={C.surface} />
-      <path d="M15.8 9 V22 L9.5 22 Z" fill={C.sky} />
-      <path d="M7.5 24 H26.5 L24 27.5 H10 Z" fill={C.red} />
-    </svg>
-  );
+  return <img src="/waymate-mark.png" alt="" width={size} height={size} className="block rounded-full" style={{ width: size, height: size }} />;
 }
 
 export const AVATARS = [
@@ -56,7 +60,7 @@ export function Scene({ kind = 'day', hull = '#F4F1EA', className }: { kind?: Sc
       <path d="M0 132 C60 116 110 122 160 127 C220 133 280 112 390 124 L390 141 L0 141 Z" fill={s.hills} />
       <g opacity={s.lh}>
         <path d="M321 124 L325 88 L333 88 L337 124 Z" fill="#fff" />
-        <path d="M322.6 110 L335.4 110 L336 116 L322 116 Z M324.3 96 L333.7 96 L334.3 102 L323.7 102 Z" fill="#C8102E" />
+        <path d="M322.6 110 L335.4 110 L336 116 L322 116 Z M324.3 96 L333.7 96 L334.3 102 L323.7 102 Z" fill="#B5352E" />
         <path d="M323 88 h12 v-3 h-12 z M325 85 v-6 h8 v6" fill="#111418" />
         <path d="M333 80 L372 70 L372 90 Z" fill="#FFF6DC" opacity="0.7" />
       </g>
@@ -72,7 +76,7 @@ export function Scene({ kind = 'day', hull = '#F4F1EA', className }: { kind?: Sc
         <path d="M3 -104 L3 -6 L52 -6 Z M-3 -98 L-3 -6 L-52 -6 Z" fill="#fff" />
       </g>
       <g transform={`translate(${s.bx} 166) rotate(-5)`}>
-        <path d="M3 -100 C44 -88 66 -48 58 -8 L3 -8 Z" fill="#C8102E" opacity={s.spin} />
+        <path d="M3 -100 C44 -88 66 -48 58 -8 L3 -8 Z" fill="#E6B07C" opacity={s.spin} />
         <path d="M0 -112 V0" stroke="#111418" strokeWidth="2.4" />
         <path d="M3 -106 L3 -8 L54 -8 Z" fill="#fff" />
         <path d="M-3 -100 L-3 -8 L-50 -8 Z" fill="#fff" opacity="0.92" />
@@ -105,7 +109,7 @@ function SnowScene({ lift, className }: { lift: boolean; className?: string }) {
             return (
               <g key={x} transform={`translate(${x} ${y})`}>
                 <path d="M0 0 V18" stroke="#3A3F46" strokeWidth="1.5" />
-                <path d="M-12 18 h24 v6 h-24 z M-12 24 v8 M12 24 v8" stroke="#3A3F46" strokeWidth="1.5" fill="#C8102E" />
+                <path d="M-12 18 h24 v6 h-24 z M-12 24 v8 M12 24 v8" stroke="#3A3F46" strokeWidth="1.5" fill="#41769F" />
                 <circle cx="-5" cy="13" r="3.5" fill="#1D5C96" />
                 <circle cx="5" cy="13" r="3.5" fill="#A8693B" />
               </g>
@@ -119,7 +123,7 @@ function SnowScene({ lift, className }: { lift: boolean; className?: string }) {
           <g transform="translate(246 138) rotate(-18)">
             <path d="M-20 14 H22" stroke="#111418" strokeWidth="3" strokeLinecap="round" />
             <path d="M-4 12 L0 -2 L6 12" stroke="#1D5C96" strokeWidth="5" strokeLinecap="round" fill="none" />
-            <path d="M-4 -2 L6 -2 L4 -18 L-3 -18 Z" fill="#C8102E" />
+            <path d="M-4 -2 L6 -2 L4 -18 L-3 -18 Z" fill="#E6B07C" />
             <circle cx="0" cy="-23" r="5" fill="#E8C9A8" />
             <path d="M-5 -26 a5 5 0 0 1 10 0 z" fill="#A8693B" />
             <path d="M-3 -12 L-16 4 M4 -12 L16 2" stroke="#3A3F46" strokeWidth="1.6" />
@@ -144,8 +148,8 @@ export function WelcomeArt({ n, groups }: { n: number; groups?: boolean }) {
         <g transform="translate(118 64) rotate(-40)"><path d={glyph} fill={C.ocean} /></g>
         <g transform="translate(206 168) rotate(120)"><circle r="17" fill={C.surface} stroke={C.teak} strokeWidth="2.5" /><path d={glyph} fill={C.ocean} /></g>
         <g transform="translate(140 196) rotate(200)"><path d={glyph} fill={C.ocean} /></g>
-        <circle className="ill-pulse" cx="150" cy="125" r="22" fill={C.red} opacity="0.35" />
-        <circle cx="150" cy="125" r="11" fill={C.red} stroke="#fff" strokeWidth="4" />
+        <circle className="ill-pulse" cx="150" cy="125" r="22" fill={C.sky} opacity="0.6" />
+        <circle cx="150" cy="125" r="11" fill={C.ink} stroke={C.surface} strokeWidth="4" />
       </svg>
     );
   if (n === 1)
@@ -163,23 +167,23 @@ export function WelcomeArt({ n, groups }: { n: number; groups?: boolean }) {
         <g className="ill-float">
           <rect x="176" y="40" width="96" height="58" rx="18" fill={C.surface} />
           <path d="M190 98 L186 112 L204 98 Z" fill={C.surface} />
-          <circle cx="204" cy="69" r="13" fill={C.success} />
+          <circle cx="204" cy="69" r="13" fill={C.accent} />
           <path d="M197 75 l1.5 -4.5 a7.5 7.5 0 1 1 3 3 z" fill="#fff" />
-          <circle cx="240" cy="69" r="13" fill={C.ocean} />
+          <circle cx="240" cy="69" r="13" fill={C.ink} />
           <path d="M235 63 c0 6 4 10 10 10 l2 -3 l-3 -2 l-2 1 c-2 -1 -3 -2 -4 -4 l1 -2 l-2 -3 z" fill="#fff" />
         </g>
-        <circle className="ill-pulse" cx="222" cy="128" r="18" fill={C.red} opacity="0.4" />
-        <circle cx="222" cy="128" r="9" fill={C.red} stroke="#fff" strokeWidth="3" />
+        <circle className="ill-pulse" cx="222" cy="128" r="18" fill={C.sky} opacity="0.6" />
+        <circle cx="222" cy="128" r="9" fill={C.ink} stroke={C.surface} strokeWidth="3" />
       </svg>
     );
   return (
     <svg viewBox="0 0 300 250" className="h-[250px] w-[300px]" aria-hidden="true">
       <circle cx="150" cy="125" r="112" fill={C.sky} opacity="0.35" />
       <path d="M150 44 C176 62 198 66 216 66 V122 C216 166 186 192 150 206 C114 192 84 166 84 122 V66 C102 66 124 62 150 44 Z" fill={C.surface} stroke={C.ink} strokeWidth="3" />
-      <path d="M126 128 l16 16 l34 -36" fill="none" stroke={C.success} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M126 128 l16 16 l34 -36" fill="none" stroke={C.accent} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
       <rect x="44" y="196" width="212" height="34" rx="17" fill={C.surface} />
-      <rect x="48" y="200" width="68" height="26" rx="13" fill={C.ink} />
-      <text x="82" y="217" fontSize="11" fontWeight="600" fill={C.onInk} textAnchor="middle" fontFamily="Inter, sans-serif">Everyone</text>
+      <rect x="48" y="200" width="68" height="26" rx="13" fill={C.select} />
+      <text x="82" y="217" fontSize="11" fontWeight="600" fill={C.onSelect} textAnchor="middle" fontFamily="Inter, sans-serif">Everyone</text>
       <text x="150" y="217" fontSize="11" fontWeight="600" fill={C.muted} textAnchor="middle" fontFamily="Inter, sans-serif">{groups ? 'Groups' : 'Friends'}</text>
       <text x="218" y="217" fontSize="11" fontWeight="600" fill={C.muted} textAnchor="middle" fontFamily="Inter, sans-serif">Invisible</text>
     </svg>
@@ -190,7 +194,7 @@ export function LocationArt() {
   return (
     <svg viewBox="0 0 220 180" className="h-[180px] w-[220px]" aria-hidden="true">
       <circle cx="110" cy="92" r="84" fill={C.sky} opacity="0.35" />
-      <circle className="ill-pulse" cx="110" cy="112" r="30" fill={C.red} opacity="0.3" />
+      <circle className="ill-pulse" cx="110" cy="112" r="30" fill={C.sky} opacity="0.55" />
       <path d="M110 30 C134 30 150 48 150 70 C150 96 120 120 110 130 C100 120 70 96 70 70 C70 48 86 30 110 30 Z" fill={C.ink} />
       <circle cx="110" cy="70" r="15" fill={C.surface} />
       <path d="M110 61 V78 M110 62 L118 76 H110" stroke={C.ink} strokeWidth="2" fill="none" strokeLinejoin="round" />
@@ -208,8 +212,8 @@ export function NotifArt() {
       <text x="78" y="95" fontSize="13" fontWeight="600" fill={C.ink} textAnchor="middle" fontFamily="Inter, sans-serif">F</text>
       <rect x="100" y="80" width="54" height="8" rx="4" fill={C.ink} />
       <rect x="100" y="94" width="40" height="7" rx="3.5" fill={C.sky} />
-      <circle cx="166" cy="58" r="12" fill={C.red} />
-      <text x="166" y="63" fontSize="13" fontWeight="600" fill="#fff" textAnchor="middle" fontFamily="Inter, sans-serif">1</text>
+      <circle cx="166" cy="58" r="12" fill={C.sky} />
+      <text x="166" y="63" fontSize="13" fontWeight="600" fill="#262626" textAnchor="middle" fontFamily="Inter, sans-serif">1</text>
     </svg>
   );
 }
@@ -221,5 +225,7 @@ export const HULL = {
 export const DECK = { sail: 'M12 7V18M12 16.5L9.8 12', motor: 'M10.2 11.5h3.6v5h-3.6z' };
 /** Person marker for the ski trip (head and shoulders). */
 export const PERSON = '<circle cx="12" cy="7.5" r="4"/><path d="M4.5 21c0-4.2 3.4-7.5 7.5-7.5s7.5 3.3 7.5 7.5z"/>';
+/** Check mark for the small badge on friends' and private-group members' markers. */
+export const BADGE_CHECK = '<path d="M5 12.5l4.2 4.2L19 7"/>';
 /** Anchor icon for marina markers (same shape as lucide's Anchor). */
 export const ANCHOR = '<path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/>';

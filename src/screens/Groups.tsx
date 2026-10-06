@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Users, Plus, Hash, ChevronLeft, MapPin, Camera, Send, ImagePlus, Heart, MessageSquare, Copy, Share2, Lock, Check,
-  Sailboat, Globe, Map as MapIcon, House, Anchor, Flag, Sun, UserPlus,
+  Users, Plus, Hash, ChevronLeft, MapPin, MapPinOff, Camera, Send, ImagePlus, Heart, MessageSquare, Copy, Share2, Lock, Check,
+  Sailboat, Globe, Map as MapIcon, House, Anchor, Flag, Sun, UserPlus, CircleAlert,
 } from 'lucide-react';
-import { useApp, personName, placeTag } from '../store';
+import { useApp, personName, placeTag, audienceText } from '../store';
+import { APP } from '../config';
 import type { SceneKind } from '../demoData';
-import { GROUPS, SUGGESTED_REGIONS, DEMO_JOIN_CODE, ME, type Group, type GroupIcon, type GroupPost, type GroupTone } from '../demoGroups';
+import { GROUPS, SUGGESTED_REGIONS, DEMO_JOIN_CODE, ME, type Group, type GroupIcon, type GroupPost, type GroupTone, type PostAudience, type LocationAudience } from '../demoGroups';
 import { PresetAvatar, Scene } from '../components/art';
-import { Avatar, Badge, Button, IconButton, Input, MvpBadge, Segmented, Sheet, cx } from '../components/ui';
+import { Avatar, Badge, Button, IconButton, Input, MvpBadge, ScreenHeader, Segmented, Sheet, chromeBtn, cx } from '../components/ui';
 import { clockTime, timeAgo, useBoatInfos } from '../hooks';
 import { memberId } from '../sim';
 import { avatarBg } from './MapScreen';
@@ -16,11 +17,10 @@ import { avatarBg } from './MapScreen';
 
 export const GROUP_ICONS: Record<GroupIcon, typeof Users> = { sailboat: Sailboat, globe: Globe, map: MapIcon, home: House, anchor: Anchor, users: Users, flag: Flag, sun: Sun };
 const TONE: Record<GroupTone, string> = {
-  teak: 'bg-teak/18 text-teak',
+  teak: 'bg-teak/30 text-ink',
   ocean: 'bg-ocean/15 text-ocean',
-  red: 'bg-dehler-red/12 text-dehler-red',
-  sky: 'bg-sky/30 text-ocean',
-  success: 'bg-success/15 text-success',
+  sky: 'bg-sky/30 text-ink',
+  grey: 'bg-fill text-muted',
 };
 const TYPE_LABEL = { private: 'Private', region: 'Region', community: 'Community' } as const;
 export const memberLabel = (g: Group) => `${g.memberCount.toLocaleString('en-GB')} ${g.memberCount === 1 ? 'member' : 'members'}`;
@@ -40,10 +40,18 @@ function PersonAvatar({ id, size = 40 }: { id: string; size?: number }) {
   return <Avatar initial={personName(id)[0]} bg={avatarBg(id)} size={size} />;
 }
 
+/** A post shared with this group. */
+export const inGroup = (p: GroupPost, gid: string) => p.audience.kind === 'groups' && p.audience.groups.includes(gid);
+/** Whether the user (as a viewer) may see the post at all. */
+export const canSeePost = (p: GroupPost, groups: Group[]) => p.authorId === ME || p.audience.kind === 'everyone' || p.audience.groups.some((id) => groups.some((g) => g.id === id));
+/** Whether the user may see where someone else's post was taken. */
+const canSeeLocation = (p: GroupPost, groups: Group[]) =>
+  p.loc.kind === 'same' || (p.loc.kind === 'groups' && p.loc.groups.some((id) => groups.some((g) => g.id === id)));
+
 /** Latest chat message or post in a group, for the groups list. */
 function lastActivity(gid: string, s: ReturnType<typeof useApp.getState>) {
   const m = s.messages.filter((x) => x.groupId === gid).reduce<null | (typeof s.messages)[number]>((a, b) => (!a || b.at > a.at ? b : a), null);
-  const p = s.posts.filter((x) => x.groupId === gid).reduce<null | GroupPost>((a, b) => (!a || b.at > a.at ? b : a), null);
+  const p = s.posts.filter((x) => inGroup(x, gid)).reduce<null | GroupPost>((a, b) => (!a || b.at > a.at ? b : a), null);
   if (!m && !p) return null;
   if (m && (!p || m.at >= p.at)) return { at: m.at, text: `${m.authorId === ME ? 'You' : m.author}: ${m.photo && !m.text ? 'Photo' : m.text}` };
   return { at: p!.at, text: `${p!.authorId === ME ? 'You' : p!.author} posted: ${p!.caption}` };
@@ -56,14 +64,13 @@ export function GroupsScreen() {
   const rows = s.groups.map((g) => ({ g, last: lastActivity(g.id, s) })).sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0));
   return (
     <div className="absolute inset-0 animate-fade-in overflow-y-auto bg-background pb-4">
-      <div className="sticky top-0 z-[2] flex items-center justify-between gap-2.5 bg-background px-5 pb-2.5 pt-[18px]">
-        <div className="flex items-center gap-2.5"><h1 className="text-[22px] font-semibold">Groups</h1><MvpBadge /></div>
+      <ScreenHeader title="Groups" badge={<MvpBadge />} action={
         <div className="flex items-center gap-2">
-          <button onClick={() => s.set({ groupSheet: 'join' })} className="inline-flex h-11 items-center gap-1.5 rounded-full bg-surface px-3.5 text-[15px] font-semibold shadow-[0_2px_10px_var(--shadow-sm)]"><Hash size={17} />Join</button>
-          <IconButton white label="Create group" onClick={() => s.set({ groupSheet: 'create' })}><Plus size={22} strokeWidth={1.75} /></IconButton>
+          <button onClick={() => s.set({ groupSheet: 'join' })} className={cx(chromeBtn, 'px-3.5 text-[15px] font-semibold')}><Hash size={17} />Join</button>
+          <button aria-label="Create group" onClick={() => s.set({ groupSheet: 'create' })} className={cx(chromeBtn, 'w-11')}><Plus size={22} strokeWidth={1.75} /></button>
         </div>
-      </div>
-      <div className="mx-4 overflow-hidden rounded-2xl bg-surface">
+      } />
+      <div className="mx-4 mt-3.5 overflow-hidden rounded-2xl bg-surface">
         {rows.map(({ g, last }) => {
           const unread = s.unread[g.id] ?? 0;
           return (
@@ -77,7 +84,7 @@ export function GroupsScreen() {
                 <span className="block text-[13px] text-muted">{TYPE_LABEL[g.type]} · {memberLabel(g)}</span>
                 <span className="flex items-center justify-between gap-2">
                   <span className={cx('truncate text-[15px]', unread ? 'font-semibold text-ink' : 'text-muted')}>{last?.text ?? 'No messages yet'}</span>
-                  {unread > 0 && <span className="flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full bg-dehler-red px-1.5 text-xs font-semibold text-on-accent">{unread}</span>}
+                  {unread > 0 && <span className="flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full bg-sky px-1.5 text-xs font-semibold text-sail">{unread}</span>}
                 </span>
               </span>
             </button>
@@ -99,21 +106,21 @@ function GroupSpace() {
   const s = useApp();
   const g = s.groups.find((x) => x.id === s.groupId);
   if (!g) return null;
-  const posts = s.posts.filter((p) => p.groupId === g.id);
+  const posts = s.posts.filter((p) => inGroup(p, g.id));
   return (
     <div className="absolute inset-0 z-[4] flex animate-slide-in flex-col bg-background">
-      <div className="bg-surface px-3 pb-3 pt-2.5 shadow-[0_1px_0_var(--line)]">
+      <div className="bg-chrome px-3 pb-3 pt-2.5 text-on-chrome">
         <div className="flex items-center gap-2.5">
-          <IconButton label="Back to groups" onClick={() => s.set({ groupId: null })}><ChevronLeft size={24} strokeWidth={1.75} /></IconButton>
+          <IconButton label="Back to groups" onChrome onClick={() => s.set({ groupId: null })}><ChevronLeft size={24} strokeWidth={1.75} /></IconButton>
           <GroupAvatar g={g} size={40} />
           <button className="min-w-0 flex-1 text-left" onClick={() => s.set({ groupSheet: 'members' })}>
             <b className="flex items-center gap-1.5 font-semibold"><span className="truncate">{g.name}</span><MvpBadge /></b>
-            <span className="text-[13px] text-muted">{TYPE_LABEL[g.type]} · {memberLabel(g)}</span>
+            <span className="text-[13px] text-on-chrome-muted">{TYPE_LABEL[g.type]} · {memberLabel(g)}</span>
           </button>
         </div>
         <div className="mt-2.5 flex items-center gap-2 px-1">
           <div className="flex-1"><Segmented small value={s.groupTab} onChange={(t) => s.setGroupTab(t)} options={[{ value: 'feed', label: 'Feed' }, { value: 'chat', label: 'Chat' }]} /></div>
-          <button onClick={() => s.showGroupOnMap(g.id)} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-[14px] px-3 text-sm font-semibold ring-[1.5px] ring-inset ring-line"><MapPin size={16} className="text-ocean" />Show on map</button>
+          <button onClick={() => s.showGroupOnMap(g.id)} className={cx(chromeBtn, 'rounded-[14px] px-3 text-sm font-semibold')}><MapPin size={16} />Show on map</button>
         </div>
       </div>
       {s.groupTab === 'feed' ? (
@@ -131,26 +138,46 @@ function GroupSpace() {
   );
 }
 
-export function PostCard({ p, showGroup }: { p: GroupPost; showGroup?: boolean }) {
+/** Who sees a post's location, in words. */
+export function locationText(l: LocationAudience, groups: Group[]) {
+  if (l.kind === 'nobody') return 'Nobody';
+  if (l.kind === 'same') return 'Same as the post';
+  return audienceText(l, groups);
+}
+
+export function PostCard({ p }: { p: GroupPost }) {
   const s = useApp();
-  const g = s.groups.find((x) => x.id === p.groupId);
+  const mine = p.authorId === ME;
+  const showPlace = mine ? p.loc.kind !== 'nobody' : canSeeLocation(p, s.groups);
   return (
     <article className="mx-4 mb-3.5 overflow-hidden rounded-2xl bg-surface">
       <div className="flex items-center gap-3 py-2.5 pl-3.5 pr-3">
         <PersonAvatar id={p.authorId} />
         <span className="min-w-0 flex-1">
-          <b className="flex min-w-0 items-center gap-1.5 font-semibold"><span className="truncate">{p.authorId === ME ? 'You' : p.author}</span>{showGroup && g && <Badge tone="group" className="min-w-0"><span className="truncate">{g.name}</span></Badge>}</b>
-          <span className="flex items-center gap-1 text-[13px] text-muted"><MapPin size={13} />{p.place} · {timeAgo(p.at)}</span>
+          <b className="block truncate font-semibold">{mine ? 'You' : p.author}</b>
+          <span className="flex min-w-0 items-center gap-1 text-[13px] text-muted">
+            {showPlace ? <MapPin size={13} className="shrink-0" /> : mine ? <MapPinOff size={13} className="shrink-0" /> : null}
+            <span className="truncate">{showPlace ? `${p.place} · ` : mine ? 'Location hidden · ' : ''}{timeAgo(p.at)}</span>
+          </span>
         </span>
+        <Badge tone={p.audience.kind === 'everyone' ? 'info' : 'group'} className="max-w-[45%] shrink">
+          {p.audience.kind === 'everyone' ? <Globe size={12} className="shrink-0" /> : <Users size={12} className="shrink-0" />}
+          <span className="truncate">{audienceText(p.audience, s.groups)}</span>
+        </Badge>
       </div>
       <div className="h-56 overflow-hidden"><Scene kind={p.scene} hull={p.hull} /></div>
       <div className="flex items-center gap-1 px-1.5 pt-1.5">
         <button onClick={() => s.likePost(p.id)} aria-label={p.liked ? 'Unlike' : 'Like'} aria-pressed={!!p.liked} className="flex h-11 items-center gap-1.5 rounded-[10px] px-2.5 text-[15px] font-semibold">
-          <Heart size={22} strokeWidth={1.75} className={p.liked ? 'fill-dehler-red text-dehler-red' : ''} />{p.likes}
+          <Heart size={22} strokeWidth={1.75} className={p.liked ? 'fill-ocean text-ocean' : ''} />{p.likes}
         </button>
         <button onClick={() => s.showToast('Comments are coming in a future version', 'message')} aria-label="Comments" className="flex h-11 items-center gap-1.5 rounded-[10px] px-2.5 text-[15px] font-semibold"><MessageSquare size={22} strokeWidth={1.75} />{p.comments}</button>
       </div>
-      <p className="px-4 pb-4 pt-0.5 text-[15px] leading-relaxed">{p.caption}</p>
+      <p className="px-4 pb-3 pt-0.5 text-[15px] leading-relaxed">{p.caption}</p>
+      {mine && (
+        <p className="flex items-center gap-1.5 border-t border-line px-4 py-2.5 text-[13px] text-muted">
+          <MapPin size={13} className="shrink-0" />Location visible to: {locationText(p.loc, s.groups)}
+        </p>
+      )}
     </article>
   );
 }
@@ -178,7 +205,7 @@ function GroupChat({ g }: { g: Group }) {
           return (
             <div key={m.id} className={cx('flex items-end gap-2', mine ? 'justify-end' : 'justify-start', first && i > 0 && 'mt-2')}>
               {!mine && <span className="w-8 shrink-0">{first && <PersonAvatar id={m.authorId} size={32} />}</span>}
-              <div className={cx('max-w-[78%] rounded-[18px] leading-snug', mine ? 'rounded-br-md bg-ink text-on-ink' : 'rounded-bl-md bg-surface', m.photo ? 'p-1' : 'px-3.5 py-2.5')}>
+              <div className={cx('max-w-[78%] rounded-[18px] leading-snug', mine ? 'rounded-br-md bg-accent text-on-accent' : 'rounded-bl-md bg-surface', m.photo ? 'p-1' : 'px-3.5 py-2.5')}>
                 {!mine && first && <span className={cx('block text-[13px] font-semibold text-ocean', m.photo && 'px-2.5 pt-1.5')}>{m.author}</span>}
                 {m.photo && <div className="h-[150px] w-[220px] overflow-hidden rounded-[14px]"><Scene kind={m.photo} /></div>}
                 {(m.text || m.photo) && (
@@ -207,9 +234,9 @@ function GroupChat({ g }: { g: Group }) {
         </div>
       )}
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex items-center gap-2 bg-surface px-3 py-2.5">
-        <IconButton type="button" label="Attach photo" aria-pressed={picker} onClick={() => setPicker(!picker)} className={picker ? 'text-dehler-red' : ''}><ImagePlus size={22} strokeWidth={1.75} /></IconButton>
+        <IconButton type="button" label="Attach photo" aria-pressed={picker} onClick={() => setPicker(!picker)} className={picker ? 'text-ocean' : ''}><ImagePlus size={22} strokeWidth={1.75} /></IconButton>
         <input value={text} onChange={(e) => setText(e.target.value)} onFocus={() => setPicker(false)} placeholder={`Message ${g.name}…`} aria-label="Message" className="h-11 min-w-0 flex-1 rounded-full bg-fill px-4 text-[15px] text-ink outline-none placeholder:text-muted" />
-        <button type="submit" disabled={!text.trim()} aria-label="Send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-dehler-red text-on-accent disabled:opacity-40"><Send size={18} /></button>
+        <button type="submit" disabled={!text.trim()} aria-label="Send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent disabled:opacity-40"><Send size={18} /></button>
       </form>
     </>
   );
@@ -234,8 +261,8 @@ export function GroupSheets() {
 }
 
 const PICK: { icon: GroupIcon; tone: GroupTone }[] = [
-  { icon: 'anchor', tone: 'teak' }, { icon: 'sailboat', tone: 'ocean' }, { icon: 'home', tone: 'red' },
-  { icon: 'users', tone: 'sky' }, { icon: 'flag', tone: 'success' }, { icon: 'sun', tone: 'teak' },
+  { icon: 'anchor', tone: 'teak' }, { icon: 'sailboat', tone: 'ocean' }, { icon: 'home', tone: 'sky' },
+  { icon: 'users', tone: 'sky' }, { icon: 'flag', tone: 'ocean' }, { icon: 'sun', tone: 'teak' },
 ];
 
 function CreateGroupSheet() {
@@ -254,7 +281,7 @@ function CreateGroupSheet() {
           <span className="text-sm font-semibold">Photo</span>
           <div className="flex gap-1.5">
             {PICK.map((p, i) => (
-              <button key={i} aria-label={`${p.icon} picture`} aria-pressed={pick === i} onClick={() => setPick(i)} className={cx('rounded-[18px] p-[3px]', pick === i && 'shadow-[inset_0_0_0_3px_var(--dehler-red)]')}>
+              <button key={i} aria-label={`${p.icon} picture`} aria-pressed={pick === i} onClick={() => setPick(i)} className={cx('rounded-[18px] p-[3px]', pick === i && 'shadow-[inset_0_0_0_3px_var(--select)]')}>
                 <GroupAvatar g={p} size={42} />
               </button>
             ))}
@@ -280,7 +307,7 @@ function InviteSheet() {
     try { await navigator.clipboard.writeText(text); s.showToast(`${what} copied`, 'check'); } catch { s.showToast(`Couldn’t copy. The ${what.toLowerCase()} is ${text}`, 'info'); }
   };
   const share = async () => {
-    if (navigator.share) { try { await navigator.share({ title: `Join ${g.name} on Ahoy`, text: `Join ${g.name} on Ahoy with code ${g.code}`, url: link }); } catch { /* cancelled */ } }
+    if (navigator.share) { try { await navigator.share({ title: `Join ${g.name} on ${APP.name}`, text: `Join ${g.name} on ${APP.name} with code ${g.code}`, url: link }); } catch { /* cancelled */ } }
     else copy(link, 'Link');
   };
   const done = () => { s.set({ groupSheet: null, inviteFor: null }); if (!s.groupId) s.openGroup(g.id); };
@@ -320,10 +347,10 @@ function JoinGroupSheet() {
         <span className="text-sm font-semibold">Have an invite code?</span>
         <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); join(); }}>
           <Input autoCapitalize="characters" placeholder="e.g. LABOE-24" aria-label="Invite code" value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setError(false); }} className="font-mono uppercase tracking-wider" />
-          <Button type="submit" variant="dark" fit className="px-5" disabled={!code.trim()}>Join</Button>
+          <Button type="submit" fit className="px-5" disabled={!code.trim()}>Join</Button>
         </form>
-        {error && <p className="text-sm text-danger" role="alert">No group found with that code. Check it and try again.</p>}
-        {!code && (
+        {error && <p className="flex items-start gap-1.5 text-sm text-danger" role="alert"><CircleAlert size={16} className="mt-0.5 shrink-0" />No group found with that code. Check it and try again.</p>}
+        {!code && s.badges && (
           <button onClick={() => setCode(DEMO_JOIN_CODE)} className="inline-flex h-9 items-center gap-1.5 self-start rounded-full bg-ocean/12 px-3.5 text-sm font-semibold text-ink">
             <Hash size={15} className="text-ocean" />Use demo code {DEMO_JOIN_CODE}
           </button>
@@ -338,8 +365,8 @@ function JoinGroupSheet() {
                 <GroupAvatar g={g} size={40} />
                 <span className="min-w-0 flex-1"><b className="block truncate font-semibold">{g.name}</b><span className="text-[13px] text-muted">Region · {memberLabel(g)}</span></span>
                 {joined
-                  ? <span className="inline-flex items-center gap-1 text-sm font-semibold text-success"><Check size={16} />Joined</span>
-                  : <Button variant="dark" size="md" fit className="h-9 text-sm" onClick={() => s.joinGroup(g)}>Join</Button>}
+                  ? <span className="inline-flex items-center gap-1 text-sm font-semibold text-ocean"><Check size={16} />Joined</span>
+                  : <Button size="md" fit className="h-9 text-sm" onClick={() => s.joinGroup(g)}>Join</Button>}
               </div>
             );
           })}
@@ -373,7 +400,7 @@ function MembersSheet() {
             <button key={b.id} onClick={() => s.set({ selectedId: b.id, groupSheet: null })} className="flex min-h-14 w-full items-center gap-3 border-b border-line px-3.5 py-2.5 text-left last:border-b-0">
               <Avatar initial={b.name[0]} bg={avatarBg(b.id)} size={40} />
               <span className="min-w-0 flex-1"><b className="block font-semibold">{b.name}</b><span className="block truncate text-[13px] text-muted">{b.activity ?? b.boat} · {infos[b.id].distLabel} away</span></span>
-              <span className="flex items-center gap-1.5 text-[13px] text-success"><span className="live-dot h-2 w-2 rounded-full bg-success" />{ski ? 'Out' : 'On the water'}</span>
+              <span className="flex items-center gap-1.5 text-[13px] text-ocean"><span className="live-dot h-2 w-2 rounded-full bg-ocean" />{ski ? 'Out' : 'On the water'}</span>
             </button>
           ))}
           {ashore.map((m) => (
@@ -389,43 +416,67 @@ function MembersSheet() {
   );
 }
 
+/** Toggle chips for picking one or more of the user's groups. */
+function GroupPicker({ selected, onToggle }: { selected: string[]; onToggle: (id: string) => void }) {
+  const s = useApp();
+  return (
+    <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5">
+      {s.groups.map((g) => {
+        const on = selected.includes(g.id);
+        return (
+          <button key={g.id} role="checkbox" aria-checked={on} onClick={() => onToggle(g.id)} className={cx('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold', on ? 'bg-select text-on-select' : 'bg-surface text-ink ring-1 ring-inset ring-outline')}>
+            {on && <Check size={15} strokeWidth={2.5} />}{g.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function ComposeSheet() {
   const s = useApp();
   const preset = s.composeGroup;
-  const [gid, setGid] = useState(preset ?? s.groups.find((g) => g.type === 'private')?.id ?? s.groups[0]?.id);
+  const [aud, setAud] = useState<PostAudience>(preset ? { kind: 'groups', groups: [preset] } : { kind: 'everyone', groups: [] });
+  const [loc, setLoc] = useState<LocationAudience>({ kind: 'nobody', groups: [] });
   const [scene, setScene] = useState<SceneKind | null>(null);
   const [caption, setCaption] = useState('');
   const close = () => s.set({ groupSheet: null, composeGroup: null });
+  const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+  const audOk = aud.kind === 'everyone' || aud.groups.length > 0;
+  const locOk = loc.kind !== 'groups' || loc.groups.length > 0;
+  const place = placeTag(s.scenario);
+  const locSummary = loc.kind === 'nobody' ? 'Nobody will see where this was taken.' : loc.kind === 'same' ? `“${place}” is shown to the same people as the post.` : `“${place}” is shown only to ${loc.groups.length ? audienceText(loc, s.groups) : 'the groups you pick'}.`;
   return (
     <Sheet onClose={close} title="New post" label="New post" badge={<MvpBadge />}>
-      <div className="flex flex-col gap-3.5 overflow-y-auto px-5 pb-8">
-        {!preset && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold">Post to</span>
-            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
-              {s.groups.map((g) => (
-                <button key={g.id} onClick={() => setGid(g.id)} className={cx('inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-sm font-semibold', gid === g.id ? 'bg-ink text-on-ink' : 'bg-surface text-ink ring-1 ring-inset ring-sky')}>{g.name}</button>
-              ))}
-            </div>
-          </div>
-        )}
+      <div className="flex flex-col gap-4 overflow-y-auto px-5 pb-8">
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-semibold">Pick a photo</span>
           <div className="grid grid-cols-3 gap-2">
             {PHOTOS[s.scenario].map((k) => (
-              <button key={k} onClick={() => setScene(k)} aria-label={`${k} photo`} aria-pressed={scene === k} className={cx('relative h-[76px] overflow-hidden rounded-xl', scene === k && 'shadow-[0_0_0_3px_var(--dehler-red)]')}>
+              <button key={k} onClick={() => setScene(k)} aria-label={`${k} photo`} aria-pressed={scene === k} className={cx('relative h-[76px] overflow-hidden rounded-xl', scene === k && 'shadow-[0_0_0_3px_var(--select)]')}>
                 <Scene kind={k} />
-                {scene === k && <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-dehler-red text-on-accent"><Check size={15} /></span>}
+                {scene === k && <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-on-accent"><Check size={15} /></span>}
               </button>
             ))}
           </div>
         </div>
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-semibold">Caption</span>
-          <textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={3} maxLength={280} placeholder="What’s happening on the water?" className="w-full resize-none rounded-[14px] border-[1.5px] border-line bg-surface px-4 py-3 text-[17px] text-ink outline-none placeholder:text-muted/70 focus:border-ocean" />
+          <textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={2} maxLength={280} placeholder="What’s happening on the water?" className="w-full resize-none rounded-[14px] border-[1.5px] border-line bg-surface px-4 py-3 text-[17px] text-ink outline-none placeholder:text-muted/70 focus:border-ocean" />
         </label>
-        <span className="flex items-center gap-1.5 text-sm text-muted"><MapPin size={15} />{placeTag(s.scenario)}</span>
-        <Button disabled={!scene || !gid} onClick={() => scene && gid && s.addPost(gid, scene, caption.trim())}>Post{gid ? ` to ${s.groups.find((g) => g.id === gid)?.name}` : ''}</Button>
+        <div className="flex flex-col gap-2">
+          <span className="flex items-center gap-1.5 text-sm font-semibold"><Users size={16} className="text-ocean" />Who can see this post</span>
+          <Segmented small value={aud.kind} onChange={(k) => setAud({ ...aud, kind: k })} options={[{ value: 'everyone', label: 'Everyone', icon: <Globe size={15} /> }, { value: 'groups', label: 'Selected groups', icon: <Users size={15} /> }]} />
+          {aud.kind === 'groups' && <GroupPicker selected={aud.groups} onToggle={(id) => setAud({ ...aud, groups: toggle(aud.groups, id) })} />}
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="flex items-center gap-1.5 text-sm font-semibold"><MapPin size={16} className="text-ocean" />Who can see where it was taken</span>
+          <Segmented small value={loc.kind} onChange={(k) => setLoc({ ...loc, kind: k })} options={[{ value: 'nobody', label: 'Nobody' }, { value: 'groups', label: 'Groups' }, { value: 'same', label: 'Same as post' }]} />
+          {loc.kind === 'groups' && <GroupPicker selected={loc.groups} onToggle={(id) => setLoc({ ...loc, groups: toggle(loc.groups, id) })} />}
+          <span className="flex items-start gap-1.5 text-[13px] text-muted">{loc.kind === 'nobody' ? <MapPinOff size={14} className="mt-px shrink-0" /> : <MapPin size={14} className="mt-px shrink-0" />}{locSummary}</span>
+        </div>
+        {(!audOk || !locOk) && <p className="flex items-center gap-1.5 text-sm text-danger" role="alert"><CircleAlert size={16} className="shrink-0" />Pick at least one group.</p>}
+        <Button disabled={!scene || !audOk || !locOk} onClick={() => scene && s.addPost(aud, loc, scene, caption.trim())}>Post</Button>
       </div>
     </Sheet>
   );
@@ -448,13 +499,13 @@ function AddToGroupSheet() {
               <button key={g.id} role="checkbox" aria-checked={on} onClick={() => s.toggleMember(g.id, pid)} className="flex min-h-16 w-full items-center gap-3 border-b border-line px-3.5 py-3 text-left last:border-b-0">
                 <GroupAvatar g={g} size={40} />
                 <span className="flex-1"><b className="block font-semibold">{g.name}</b><span className="text-[13px] text-muted">{memberLabel(g)}</span></span>
-                <span className={cx('flex h-6 w-6 items-center justify-center rounded-md border-2', on ? 'border-ink bg-ink text-on-ink' : 'border-sky')}>{on && <Check size={16} strokeWidth={3} />}</span>
+                <span className={cx('flex h-6 w-6 items-center justify-center rounded-md border-2', on ? 'border-select bg-select text-on-select' : 'border-outline')}>{on && <Check size={16} strokeWidth={3} />}</span>
               </button>
             );
           })}
         </div>
         <Button variant="secondary" size="md" onClick={() => s.set({ addToGroupFor: null, groupSheet: 'create' })}><Plus size={18} />New group</Button>
-        <Button variant="dark" onClick={close}>Done</Button>
+        <Button onClick={close}>Done</Button>
       </div>
     </Sheet>
   );

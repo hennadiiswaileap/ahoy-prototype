@@ -1,72 +1,92 @@
 /**
  * Every colour in the app lives in this file.
  *
- * PALETTE is the client's boat palette, in a light and a dark version.
- * SUPPORT and EXTRAS are a few extra values derived from it (borders, fills,
- * status colours, shadows, the map). At startup the values are written into
- * CSS variables (see installTheme), and the Tailwind colour names in
- * src/index.css (bg-ink, text-ocean, ...) point at those variables.
+ * BRAND holds the six colours from the WayMate specification (section 8.2).
+ * LIGHT and DARK map them to roles (text, surfaces, buttons, navigation…) and
+ * add the few tints and shades that dark mode or contrast needs. At startup the
+ * values are written into CSS variables (see installTheme), and the Tailwind
+ * colour names in src/index.css (bg-accent, text-ocean, …) point at them.
+ *
+ * Usage rules from the specification:
+ * - Red is not a CTA colour: warnings, destructive actions, critical privacy and safety states only.
+ * - Sky and Ocean carry navigation and selection states. Primary buttons are Ocean with white text.
+ * - Teak marks services, partner content and private groups, always with a label or icon.
+ * - Light mode: near-black chrome (header, tab bar) with light content. Dark mode: near-black throughout.
  */
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type Resolved = 'light' | 'dark';
 
-export const PALETTE = {
-  light: {
-    ink: '#111418', // primary text, icons
-    surface: '#FFFFFF', // cards, sheets
-    background: '#F4F1EC', // app background (warm off-white, like canvas)
-    teak: '#A8693B', // warm accents, chips, illustrations, highlights
-    'dehler-red': '#C8102E', // primary CTA, "you" marker, live badges. Placeholder for the exact Dehler red.
-    ocean: '#1D5C96', // other boats, links, secondary actions
-    sky: '#8DB3D6', // map accents, borders, inactive states
-    muted: '#5B6470', // secondary text, timestamps
-  },
-  dark: {
-    ink: '#F4F1EC',
-    surface: '#15191E',
-    background: '#0B0E12',
-    teak: '#C8875A',
-    // The brief says #E0344C. White button text on it is 4.4:1, just under WCAG AA,
-    // so it is nudged to #DD2F48 (4.6:1). Same hue, barely visible difference.
-    'dehler-red': '#DD2F48',
-    ocean: '#4C8CC9',
-    sky: '#3A5F80',
-    muted: '#9AA3AD',
-  },
+/** The six brand colours. The spec lists RGB 171,20,32 for red; the hex below is the one used. */
+export const BRAND = {
+  red: '#A81420', // Mexican Red, "Dehler Red"
+  sky: '#7FCAFF', // Malibu, "The Sky"
+  ocean: '#41769F', // Kashmir Blue, "The Ocean"
+  teak: '#E6B07C', // Tacao, "Teak Deck"
+  sail: '#262626', // Near Black, "The Sail"
+  boat: '#FFFFFF', // White, "The Boat"
 } as const;
 
-/** Supporting colours. Not in the client's table, derived from it. */
-export const SUPPORT = {
-  light: {
-    line: '#E2DCD2', // borders, dividers
-    fill: '#F4F1EC', // subtle fill inside cards: chips, rows, info boxes
-    'on-ink': '#FFFFFF', // text on ink-coloured buttons and bubbles
-    'on-accent': '#FFFFFF', // text on dehler-red
-    success: '#2E7D5B', // sharing location, online
-    danger: '#C8102E', // destructive text (Delete account)
-  },
-  dark: {
-    line: '#2A3038',
-    fill: '#1F252C',
-    'on-ink': '#0B0E12',
-    'on-accent': '#FFFFFF',
-    success: '#4CC38A',
-    // Red text on a dark card needs a lighter red than the button fill to stay readable.
-    danger: '#FF7A8A',
-  },
+/** Colours that are the same in both themes. */
+const SHARED = {
+  red: BRAND.red, // fills only (banners, destructive buttons), always with white text
+  sky: BRAND.sky,
+  teak: BRAND.teak,
+  sail: BRAND.sail,
+  boat: BRAND.boat,
+  accent: BRAND.ocean, // primary buttons, my chat bubbles, boat markers
+  'on-accent': BRAND.boat,
+  'on-chrome': BRAND.boat,
+};
+
+export const LIGHT = {
+  ...SHARED,
+  background: '#F5F7F9', // app background, a whisper of Ocean
+  surface: BRAND.boat, // cards, sheets
+  fill: '#EEF2F5', // subtle fill inside cards
+  line: '#E0E6EB', // dividers
+  outline: '#A9B8C6', // outlined buttons and chips, switch off
+  ink: BRAND.sail, // text
+  muted: '#5A6570', // secondary text
+  'on-ink': BRAND.boat, // text on ink-filled elements (toasts)
+  ocean: BRAND.ocean, // icons, headings, links
+  chrome: BRAND.sail, // header and tab bar
+  'on-chrome-muted': '#B5BCC3', // inactive tab labels
+  select: BRAND.ocean, // selected chips, segments, radios
+  'on-select': BRAND.boat,
+  danger: BRAND.red, // destructive and error text
+  'teak-strong': '#9A6430', // teak shade for icons on light surfaces
+} as const;
+
+export const DARK = {
+  ...SHARED,
+  background: BRAND.sail,
+  surface: '#303234',
+  fill: '#3A3D40',
+  line: '#45494D',
+  outline: '#5F656B',
+  ink: '#F4F4F4',
+  muted: '#AAB2BA',
+  'on-ink': BRAND.sail,
+  ocean: '#7DADD4', // Ocean tint: base Ocean is too dark for icons and text on near-black
+  chrome: '#1E1E1E',
+  'on-chrome-muted': '#9EA5AC',
+  select: BRAND.sky,
+  'on-select': '#1C1C1C',
+  danger: '#FF8A93', // Red tint: base Red on near-black is only 2:1
+  'teak-strong': BRAND.teak,
 } as const;
 
 /** Backgrounds behind people's initials. Initials are drawn in ink on top. */
 export const AVATAR_COLOURS = {
-  light: ['#EAD9C6', '#D6E3EF', '#DFE6D8', '#F2D9DC', '#E3DFEC', '#E8E1D6'],
-  dark: ['#4B3A2B', '#22384C', '#2E3A2B', '#4A2830', '#352F48', '#3B352C'],
+  light: ['#DCEEFC', '#F7E6D4', '#DCE6EF', '#E8E8E8', '#D2E9FA', '#F2DFCB'],
+  dark: ['#284A63', '#5A4329', '#2E445A', '#45484B', '#21445E', '#4E3B26'],
 } as const;
 
 /** Values that are not Tailwind colours: shadows, the dimmed backdrop, the page behind the phone frame. */
 export const EXTRAS = {
-  light: { scrim: 'rgba(17,20,24,.42)', 'shadow-sm': 'rgba(17,20,24,.14)', 'shadow-lg': 'rgba(17,20,24,.22)', page: '#E4DED4', 'theme-color': '#F4F1EC' },
-  dark: { scrim: 'rgba(0,0,0,.62)', 'shadow-sm': 'rgba(0,0,0,.5)', 'shadow-lg': 'rgba(0,0,0,.66)', page: '#050608', 'theme-color': '#0B0E12' },
+  light: { scrim: 'rgba(38,38,38,.45)', 'shadow-sm': 'rgba(38,38,38,.14)', 'shadow-lg': 'rgba(38,38,38,.22)', page: '#E4E9EE', 'theme-color': BRAND.sail },
+  dark: { scrim: 'rgba(0,0,0,.6)', 'shadow-sm': 'rgba(0,0,0,.45)', 'shadow-lg': 'rgba(0,0,0,.6)', page: '#141414', 'theme-color': BRAND.sail },
 } as const;
 
 /**
@@ -77,21 +97,21 @@ export const EXTRAS = {
 export const MAP_THEME = {
   light: {
     background: '#C9DDEE',
-    radiusFill: '#8DB3D6',
-    radiusLine: '#1D5C96',
+    radiusFill: BRAND.ocean,
+    radiusLine: BRAND.ocean,
     raster: { 'raster-brightness-min': 0.08, 'raster-brightness-max': 1, 'raster-saturation': -0.45, 'raster-contrast': -0.08, 'raster-hue-rotate': 0 },
   },
   dark: {
-    background: '#0D1823',
-    radiusFill: '#4C8CC9',
-    radiusLine: '#4C8CC9',
-    raster: { 'raster-brightness-min': 0.92, 'raster-brightness-max': 0.06, 'raster-saturation': -0.55, 'raster-contrast': 0.05, 'raster-hue-rotate': 180 },
+    background: '#1E2327',
+    radiusFill: BRAND.sky,
+    radiusLine: BRAND.sky,
+    raster: { 'raster-brightness-min': 0.9, 'raster-brightness-max': 0.08, 'raster-saturation': -0.7, 'raster-contrast': 0.05, 'raster-hue-rotate': 180 },
   },
 } as const;
 
 function cssVars(mode: Resolved) {
   const out: string[] = [];
-  for (const [k, v] of Object.entries({ ...PALETTE[mode], ...SUPPORT[mode] })) out.push(`--${k}: ${v};`);
+  for (const [k, v] of Object.entries(mode === 'dark' ? DARK : LIGHT)) out.push(`--${k}: ${v};`);
   AVATAR_COLOURS[mode].forEach((c, i) => out.push(`--avatar-${i}: ${c};`));
   for (const [k, v] of Object.entries(EXTRAS[mode])) if (k !== 'theme-color') out.push(`--${k}: ${v};`);
   return out.join(' ');
@@ -100,7 +120,7 @@ function cssVars(mode: Resolved) {
 /** Writes both themes into a <style> tag. The `dark` class on <html> switches between them. */
 export function installTheme() {
   const el = document.createElement('style');
-  el.id = 'ahoy-theme';
+  el.id = 'waymate-theme';
   el.textContent = `:root { ${cssVars('light')} color-scheme: light; } :root.dark { ${cssVars('dark')} color-scheme: dark; }`;
   document.head.appendChild(el);
 }
@@ -121,7 +141,7 @@ export function onSystemThemeChange(fn: () => void) {
 }
 
 // The theme choice is the one setting kept across reloads, so an override doesn't flip back.
-const KEY = 'ahoy-theme';
+const KEY = 'waymate-theme';
 export function loadThemeMode(): ThemeMode {
   try {
     const v = localStorage.getItem(KEY);

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { PEOPLE, EXTRA_BOATS, DEMO_PHONE, MARINAS, type ContactKind, type BoatType, type SceneKind } from './demoData';
-import { GROUPS, INITIAL_UNREAD, CANNED, SKI_CANNED, ASHORE, CODE_GROUPS, ME, initialPosts, initialMessages, skiPosts, skiMessages, type Group, type GroupPost, type ChatMsg, type GroupIcon, type GroupTone } from './demoGroups';
+import { GROUPS, INITIAL_UNREAD, CANNED, SKI_CANNED, ASHORE, CODE_GROUPS, ME, initialPosts, initialMessages, skiPosts, skiMessages, type Group, type GroupPost, type ChatMsg, type GroupIcon, type GroupTone, type PostAudience, type LocationAudience } from './demoGroups';
 import { MAP, SIM } from './config';
 import { clock, spawnExtra, posAt, userTrack, distanceM, type Boat, type Scenario } from './sim';
 import { loadThemeMode, resolveTheme, saveThemeMode, type ThemeMode } from './theme';
@@ -59,6 +59,8 @@ interface State {
   visSheetOpen: boolean;
   friends: Record<string, true>;
   visibility: Visibility;
+  /** Visibility to restore when stealth mode is switched off. */
+  prevVisibility: Visibility;
   visibleGroups: string[];
   sharing: boolean;
   offline: boolean;
@@ -79,6 +81,8 @@ interface State {
   focus: { lon: number; lat: number; seq: number } | null;
 
   scope: Scope;
+  /** Scope badges and demo hints. Off for focus groups (?badges=off). */
+  badges: boolean;
   theme: ThemeMode;
   /** The theme actually showing (system setting resolved). */
   dark: boolean;
@@ -91,6 +95,8 @@ interface State {
   typing: { groupId: string; name: string } | null;
   groupId: string | null;
   groupTab: 'feed' | 'chat';
+  /** Feed tab filter: 'all', 'nearby' or a group ID. */
+  feedFilter: string;
   groupSheet: GroupSheet;
   /** Group the invite sheet is for. */
   inviteFor: string | null;
@@ -115,7 +121,7 @@ interface State {
   openGroup: (id: string) => void;
   setGroupTab: (t: 'feed' | 'chat') => void;
   sendMessage: (groupId: string, text: string, photo?: SceneKind) => void;
-  addPost: (groupId: string, scene: SceneKind, caption: string) => void;
+  addPost: (audience: PostAudience, loc: LocationAudience, scene: SceneKind, caption: string) => void;
   likePost: (id: string) => void;
   createGroup: (name: string, icon: GroupIcon, tone: GroupTone) => string;
   joinGroup: (g: Group) => void;
@@ -123,6 +129,8 @@ interface State {
   toggleMember: (groupId: string, personId: string) => void;
   toggleVisibleGroup: (groupId: string) => void;
   showGroupOnMap: (groupId: string) => void;
+  toggleStealth: () => void;
+  setBadges: (on: boolean) => void;
 }
 
 const initialProfile: Profile = { avatar: 1, name: 'Jonas', boat: 'Morgenwind', model: 'Bavaria 34', type: 'sail', mmsi: '', contact: 'whatsapp', handle: '', vertical: 'sailing', otherActivity: '' };
@@ -149,6 +157,7 @@ const initial = () => ({
   visSheetOpen: false,
   friends: Object.fromEntries(PEOPLE.filter((p) => p.friend).map((p) => [p.id, true])) as Record<string, true>,
   visibility: 'everyone' as Visibility,
+  prevVisibility: 'everyone' as Visibility,
   visibleGroups: ['family', 'pier7'],
   sharing: true,
   offline: false,
@@ -174,6 +183,7 @@ const initial = () => ({
   typing: null,
   groupId: null,
   groupTab: 'feed' as const,
+  feedFilter: 'all',
   groupSheet: null as GroupSheet,
   inviteFor: null,
   composeGroup: null,
@@ -234,6 +244,7 @@ export const useApp = create<State>((set, get) => {
   return {
     ...initial(),
     scope: 'b' as Scope,
+    badges: true,
     theme: loadThemeMode(),
     dark: resolveTheme(loadThemeMode()) === 'dark',
     set: (p) => set(p),
@@ -326,14 +337,15 @@ export const useApp = create<State>((set, get) => {
       set({ messages: [...s.messages, msg] });
       scheduleReplies(gid);
     },
-    addPost: (gid, scene, caption) => {
+    addPost: (audience, loc, scene, caption) => {
       const s = get();
       const post: GroupPost = {
-        id: uid('p'), groupId: gid, authorId: ME, author: s.profile.name || 'You', at: Date.now(), scene, hull: '#F4F1EA',
-        caption, place: placeTag(s.scenario), likes: 0, comments: 0, ...(s.scenario === 'ski' && gid === 'family' ? { ski: true } : {}),
+        id: uid('p'), audience, loc, authorId: ME, author: s.profile.name || 'You', at: Date.now(), scene, hull: '#F4F1EA',
+        caption, place: placeTag(s.scenario), likes: 0, comments: 0, ...(s.scenario === 'ski' && audience.groups.includes('family') ? { ski: true } : {}),
       };
       set({ posts: [post, ...s.posts], groupSheet: null, composeGroup: null });
-      get().showToast(`Posted to ${s.groups.find((g) => g.id === gid)?.name ?? 'your group'}`, 'check');
+      const label = audienceText(audience, s.groups);
+      get().showToast(label === 'Everyone' ? 'Posted for everyone' : `Posted to ${label}`, 'check');
     },
     likePost: (id) => set({ posts: get().posts.map((p) => (p.id === id ? { ...p, liked: !p.liked, likes: p.likes + (p.liked ? -1 : 1) } : p)) }),
     createGroup: (name, icon, tone) => {
@@ -369,6 +381,30 @@ export const useApp = create<State>((set, get) => {
       set({ visibleGroups: v.includes(gid) ? v.filter((x) => x !== gid) : [...v, gid], visibility: 'groups' });
     },
     showGroupOnMap: (gid) => set({ tab: 'map', mapGroup: gid, groupId: null, selectedId: null, sheetOpen: false, follow: false, fitSeq: get().fitSeq + 1 }),
+    toggleStealth: () => {
+      const s = get();
+      if (!s.sharing || s.visibility === 'invisible') {
+        // Restore what the user had before, adjusted to the current scope.
+        let v = s.visibility === 'invisible' ? s.prevVisibility : s.visibility;
+        if (v === 'invisible') v = 'everyone';
+        if (s.scope === 'b' && v === 'friends') v = 'groups';
+        if (s.scope === 'a' && v === 'groups') v = 'friends';
+        set({ sharing: true, visibility: v });
+        get().showToast(`You’re visible again. ${visibilityText({ ...s, sharing: true, visibility: v }).b}.`, 'eye');
+      } else {
+        set({ prevVisibility: s.visibility, visibility: 'invisible' });
+        get().showToast('You’re invisible. Nobody can see your position.', 'eye-off');
+      }
+    },
+    setBadges: (on) => {
+      set({ badges: on });
+      // Keep the choice in the URL so a reload (or a shared link) stays in the same mode.
+      try {
+        const u = new URL(window.location.href);
+        if (on) u.searchParams.delete('badges'); else u.searchParams.set('badges', 'off');
+        window.history.replaceState(null, '', u);
+      } catch { /* not critical */ }
+    },
   };
 });
 
@@ -385,10 +421,19 @@ export function visibilityText(s: Pick<State, 'sharing' | 'visibility' | 'visibl
   return { a: 'Sharing location', b: 'Visible to everyone', off: false };
 }
 
-/** Read ?demo, ?screen=map, ?scope=a|b and ?theme=light|dark|system from the URL. */
+/** "Everyone", "Family Crew", "Family Crew, Pier 7 Friends" or "Family Crew +2". */
+export function audienceText(a: { kind: string; groups: string[] }, groups: Group[]) {
+  if (a.kind === 'everyone') return 'Everyone';
+  const names = a.groups.map((id) => groups.find((g) => g.id === id)?.name).filter(Boolean) as string[];
+  if (!names.length) return 'Your groups';
+  return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+}
+
+/** Read ?demo, ?screen=map, ?scope=a|b, ?theme=light|dark|system and ?badges=off from the URL. */
 export function applyUrlFlags() {
   const q = new URLSearchParams(window.location.search);
   const st = useApp.getState();
+  if (q.get('badges') === 'off') useApp.setState({ badges: false });
   const scope = q.get('scope')?.toLowerCase();
   if (scope === 'a' || scope === 'b') useApp.setState({ scope });
   const theme = q.get('theme');

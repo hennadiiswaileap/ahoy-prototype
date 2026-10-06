@@ -4,7 +4,7 @@ import { useApp } from '../store';
 import { APP } from '../config';
 import { COUNTRY_CODES, DEMO_PHONE, DEMO_CODE, type ContactKind } from '../demoData';
 import { Button, IconButton, Input, Segmented, cx } from '../components/ui';
-import { LogoMark, WelcomeArt, LocationArt, NotifArt, AVATARS } from '../components/art';
+import { BrandArt, WelcomeArt, LocationArt, NotifArt, AVATARS } from '../components/art';
 import { useLongPress } from '../hooks';
 
 const SLIDES = [
@@ -16,7 +16,7 @@ const SLIDES = [
 function Steps({ n }: { n: number }) {
   return (
     <div className="flex flex-1 gap-1.5 pr-11">
-      {[0, 1, 2, 3, 4].map((i) => <span key={i} className={cx('h-1 flex-1 rounded-full', i < n ? 'bg-ink' : 'bg-line')} />)}
+      {[0, 1, 2, 3, 4].map((i) => <span key={i} className={cx('h-1 flex-1 rounded-full', i < n ? 'bg-ocean' : 'bg-line')} />)}
     </div>
   );
 }
@@ -33,15 +33,15 @@ const Screen = ({ children, className }: { children: React.ReactNode; className?
 );
 
 export function Welcome() {
-  const { set, scope } = useApp();
+  const { set, scope, dark } = useApp();
   const [slide, setSlide] = useState(0);
   const startX = useRef<number | null>(null);
   const lp = useLongPress(() => set({ demoOpen: true }));
   return (
     <Screen>
       <div className="flex items-center justify-between pl-5 pr-4 pt-4">
-        <button className="flex h-11 items-center gap-2.5" aria-label={`${APP.name}, hold for demo controls`} {...lp}>
-          <LogoMark />
+        <button className="flex h-11 items-center gap-2" aria-label={`${APP.name}, hold for demo controls`} {...lp}>
+          <BrandArt tone={dark ? 'sky' : 'ocean'} className="h-12" />
           <span className="text-xl font-semibold tracking-tight">{APP.name}</span>
         </button>
         <button className="h-11 px-3 font-semibold text-ocean" onClick={() => set({ screen: 'signin' })}>Skip</button>
@@ -70,7 +70,7 @@ export function Welcome() {
       <div className="flex justify-center gap-1 pb-5">
         {SLIDES.map((_, i) => (
           <button key={i} aria-label={`Slide ${i + 1}`} onClick={() => setSlide(i)} className="flex h-7 w-7 items-center justify-center">
-            <span className={cx('h-2 rounded-full transition-all', i === slide ? 'w-6 bg-ink' : 'w-2 bg-sky')} />
+            <span className={cx('h-2 rounded-full transition-all', i === slide ? 'w-6 bg-ocean' : 'w-2 bg-outline')} />
           </button>
         ))}
       </div>
@@ -83,7 +83,7 @@ export function Welcome() {
 }
 
 export function SignIn() {
-  const { set } = useApp();
+  const { set, dark } = useApp();
   const [busy, setBusy] = useState(false);
   const go = () => {
     setBusy(true);
@@ -93,12 +93,12 @@ export function SignIn() {
   return (
     <Screen className="justify-between px-6 pb-7">
       <div className="flex flex-col items-center gap-3.5 pt-[110px] text-center">
-        <LogoMark size={76} />
-        <h1 className="mt-2.5 text-[28px] font-semibold tracking-tight">Welcome aboard</h1>
+        <BrandArt tone={dark ? 'sky' : 'ocean'} className="w-[170px]" />
+        <h1 className="mt-1 text-[28px] font-semibold tracking-tight">Welcome aboard</h1>
         <p className="max-w-[290px] text-[17px] text-muted">Sign in to see the sailors around you and let them reach you.</p>
       </div>
       <div className="flex flex-col gap-3">
-        <Button variant="dark" disabled={busy} onClick={go}>{busy ? <><Spin />Signing in…</> : 'Continue with Google'}</Button>
+        <Button disabled={busy} onClick={go}>{busy ? <><Spin />Signing in…</> : 'Continue with Google'}</Button>
         <p className="mt-1.5 text-center text-[13px] text-muted">By continuing you agree to the Terms of Use and Privacy Policy.</p>
       </div>
     </Screen>
@@ -106,7 +106,7 @@ export function SignIn() {
 }
 
 export function PhoneScreen() {
-  const { set, phone, countryCode } = useApp();
+  const { set, phone, countryCode, badges } = useApp();
   const [open, setOpen] = useState(false);
   const valid = phone.replace(/\D/g, '').length >= 6;
   return (
@@ -130,7 +130,7 @@ export function PhoneScreen() {
             </div>
           )}
         </div>
-        {!phone && (
+        {!phone && badges && (
           <button onClick={() => set({ phone: DEMO_PHONE })} className="inline-flex h-9 items-center gap-1.5 self-start rounded-full bg-ocean/12 px-3.5 text-sm font-semibold text-ink">
             <Phone size={15} className="text-ocean" />Use {countryCode} {DEMO_PHONE}
           </button>
@@ -169,7 +169,7 @@ export function CodeScreen() {
         <p className="text-muted">Sent to {countryCode} {phone || DEMO_PHONE}. <button className="font-semibold text-ocean" onClick={() => set({ screen: 'phone' })}>Change</button></p>
         <div className="mt-2 grid grid-cols-6 gap-2" aria-label="Verification code">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className={cx('flex h-[58px] items-center justify-center rounded-[14px] border-[1.5px] bg-surface text-[26px] font-semibold', code.length === 6 ? 'border-success' : i === code.length ? 'border-ocean shadow-[0_0_0_3px_color-mix(in_oklab,var(--ocean)_18%,transparent)]' : 'border-line')}>
+            <div key={i} className={cx('flex h-[58px] items-center justify-center rounded-[14px] border-[1.5px] bg-surface text-[26px] font-semibold', code.length === 6 ? 'border-ocean' : i === code.length ? 'border-ocean shadow-[0_0_0_3px_color-mix(in_oklab,var(--ocean)_18%,transparent)]' : 'border-line')}>
               {code[i] ?? ''}
             </div>
           ))}
@@ -197,7 +197,7 @@ export function CodeScreen() {
             aria-label={k === 'del' ? 'Delete' : k || 'Blank'}
             disabled={!k || verifying}
             onClick={() => (k === 'del' ? setCode(code.slice(0, -1)) : code.length < 6 && type(code + k))}
-            className={cx('flex h-[52px] items-center justify-center rounded-xl text-2xl', k && k !== 'del' ? 'bg-surface shadow-[0_1px_0_var(--sky)] active:bg-fill' : '')}
+            className={cx('flex h-[52px] items-center justify-center rounded-xl text-2xl', k && k !== 'del' ? 'bg-surface shadow-[0_1px_0_var(--outline)] active:bg-fill' : '')}
           >
             {k === 'del' ? <Delete size={24} strokeWidth={1.75} /> : k}
           </button>
@@ -214,7 +214,7 @@ export function CommunityScreen() {
   const upd = (o: Partial<typeof p>) => set({ profile: { ...p, ...o } });
   const other = p.vertical === 'other';
   const dot = (on: boolean) => (
-    <span className={cx('flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2', on ? 'border-ink' : 'border-sky')}>{on && <span className="h-3 w-3 rounded-full bg-ink" />}</span>
+    <span className={cx('flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2', on ? 'border-select' : 'border-outline')}>{on && <span className="h-3 w-3 rounded-full bg-select" />}</span>
   );
   return (
     <Screen>
@@ -222,15 +222,15 @@ export function CommunityScreen() {
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-6 pt-6">
         <h1 className="text-[28px] font-semibold tracking-tight">What brings you here?</h1>
         <p className="text-muted">Pick your community. You’ll see the people and groups who share it.</p>
-        <button role="radio" aria-checked={!other} onClick={() => upd({ vertical: 'sailing' })} className={cx('mt-2 flex flex-col gap-4 rounded-[20px] bg-surface p-4 text-left', !other ? 'shadow-[inset_0_0_0_2px_var(--ink)]' : 'ring-1 ring-inset ring-line')}>
+        <button role="radio" aria-checked={!other} onClick={() => upd({ vertical: 'sailing' })} className={cx('mt-2 flex flex-col gap-4 rounded-[20px] bg-surface p-4 text-left', !other ? 'shadow-[inset_0_0_0_2px_var(--select)]' : 'ring-1 ring-inset ring-line')}>
           <span className="flex items-start justify-between">
             <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-ocean/12 text-ocean"><Sailboat size={34} strokeWidth={1.6} /></span>
             {dot(!other)}
           </span>
           <span><b className="block text-xl font-semibold">Sailing</b><span className="text-[15px] text-muted">Cruising, day sailing and racing on the Baltic.</span></span>
         </button>
-        <button role="radio" aria-checked={other} onClick={() => upd({ vertical: 'other' })} className={cx('flex items-center gap-3.5 rounded-[20px] bg-surface px-4 py-3.5 text-left', other ? 'shadow-[inset_0_0_0_2px_var(--ink)]' : 'ring-1 ring-inset ring-line')}>
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teak/15 text-teak"><Compass size={24} strokeWidth={1.7} /></span>
+        <button role="radio" aria-checked={other} onClick={() => upd({ vertical: 'other' })} className={cx('flex items-center gap-3.5 rounded-[20px] bg-surface px-4 py-3.5 text-left', other ? 'shadow-[inset_0_0_0_2px_var(--select)]' : 'ring-1 ring-inset ring-line')}>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teak/30 text-ink"><Compass size={24} strokeWidth={1.7} /></span>
           <span className="flex-1"><b className="block font-semibold">Other</b><span className="text-[15px] text-muted">Something else on land, water or snow</span></span>
           {dot(other)}
         </button>
@@ -272,7 +272,7 @@ export function ProfileForm() {
           <span className="text-sm font-semibold">Photo</span>
           <div className="flex gap-3.5">
             {AVATARS.map((a, i) => (
-              <button key={i} aria-label={`${a.label} avatar`} aria-pressed={p.avatar === i} onClick={() => upd({ avatar: i })} className={cx('rounded-full p-[3px] transition', p.avatar === i ? 'shadow-[inset_0_0_0_3px_var(--dehler-red)]' : '')}>
+              <button key={i} aria-label={`${a.label} avatar`} aria-pressed={p.avatar === i} onClick={() => upd({ avatar: i })} className={cx('rounded-full p-[3px] transition', p.avatar === i ? 'shadow-[inset_0_0_0_3px_var(--select)]' : '')}>
                 <span className="flex h-[58px] w-[58px] items-center justify-center rounded-full text-ink" style={{ background: a.bg }}><a.Icon size={28} strokeWidth={1.6} /></span>
               </button>
             ))}
@@ -339,8 +339,8 @@ export function Permissions() {
           ))}
         </div>
         {loc && (
-          <div className="mt-1.5 flex items-start gap-2.5 rounded-[14px] bg-success/15 px-3.5 py-3 text-sm text-ink">
-            <ShieldCheck size={18} className="mt-px shrink-0 text-success" />We never sell location data. Positions are deleted after 24 hours.
+          <div className="mt-1.5 flex items-start gap-2.5 rounded-[14px] bg-sky/25 px-3.5 py-3 text-sm text-ink">
+            <ShieldCheck size={18} className="mt-px shrink-0 text-ocean" />We never sell location data. Positions are deleted after 24 hours.
           </div>
         )}
       </div>
@@ -357,7 +357,7 @@ export function Permissions() {
               {dialog === 'loc' && (
                 <svg viewBox="0 0 264 96" className="mt-1 h-24 w-full rounded-xl bg-sky/30">
                   <path d="M0 0 H90 C80 30 100 50 84 96 H0 Z" fill="var(--teak)" opacity="0.25" /><path d="M200 0 H264 V96 H180 C196 70 180 40 200 0 Z" fill="var(--teak)" opacity="0.25" />
-                  <circle cx="138" cy="50" r="16" fill="var(--dehler-red)" opacity="0.3" /><circle cx="138" cy="50" r="7" fill="var(--dehler-red)" stroke="#fff" strokeWidth="2.5" />
+                  <circle cx="138" cy="50" r="16" fill="var(--select)" opacity="0.3" /><circle cx="138" cy="50" r="7" fill="var(--select)" stroke="#fff" strokeWidth="2.5" />
                 </svg>
               )}
             </div>

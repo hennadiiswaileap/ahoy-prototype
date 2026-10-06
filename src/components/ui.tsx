@@ -1,17 +1,19 @@
 import { type ButtonHTMLAttributes, type ReactNode, type InputHTMLAttributes, forwardRef } from 'react';
-import { X } from 'lucide-react';
+import { X, Clock } from 'lucide-react';
+import { useApp } from '../store';
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
+/** primary: Ocean (the CTA colour). danger: Red, destructive actions only. dark: inverse, used sparingly. */
 type Variant = 'primary' | 'dark' | 'secondary' | 'ghost' | 'danger';
 /** `fit` sizes the button to its label instead of the full width. */
 export function Button({ variant = 'primary', size = 'lg', fit, className, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: 'lg' | 'md'; fit?: boolean }) {
   const v: Record<Variant, string> = {
-    primary: 'bg-dehler-red text-on-accent',
+    primary: 'bg-accent text-on-accent',
     dark: 'bg-ink text-on-ink',
-    secondary: 'bg-surface text-ink ring-[1.5px] ring-inset ring-sky',
+    secondary: 'bg-surface text-ink ring-[1.5px] ring-inset ring-outline',
     ghost: 'text-ocean',
-    danger: 'bg-surface text-danger ring-[1.5px] ring-inset ring-danger/40',
+    danger: 'bg-red text-white',
   };
   return (
     <button
@@ -27,15 +29,34 @@ export function Button({ variant = 'primary', size = 'lg', fit, className, ...p 
   );
 }
 
-export function IconButton({ label, className, white, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; white?: boolean }) {
+/** `onChrome` is for the near-black header bar (white icon). */
+export function IconButton({ label, className, white, onChrome, ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; white?: boolean; onChrome?: boolean }) {
   return (
     <button
       aria-label={label}
       {...p}
-      className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink', white && 'bg-surface shadow-[0_2px_10px_var(--shadow-sm)]', className)}
+      className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-full', onChrome ? 'text-on-chrome' : 'text-ink', white && 'bg-surface shadow-[0_2px_10px_var(--shadow-sm)]', className)}
     />
   );
 }
+
+/** Round button on the near-black header bar. */
+export const chromeBtn = 'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-white/12 text-on-chrome';
+
+/** Near-black header bar for app screens (the spec's "dark chrome"). */
+export function ScreenHeader({ title, badge, action, back }: { title: string; badge?: ReactNode; action?: ReactNode; back?: () => void }) {
+  return (
+    <div className="sticky top-0 z-[2] flex min-h-[64px] items-center justify-between gap-2.5 bg-chrome px-4 py-2.5 text-on-chrome">
+      <div className="flex min-w-0 items-center gap-2">
+        {back && <button aria-label="Back" onClick={back} className={cx(chromeBtn, '-ml-1 w-11 bg-transparent')}><ChevronBack /></button>}
+        <h1 className="truncate pl-1 text-[22px] font-semibold">{title}</h1>
+        {badge}
+      </div>
+      {action}
+    </div>
+  );
+}
+const ChevronBack = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>;
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...p }, ref) {
   return (
@@ -54,10 +75,17 @@ export function Switch({ on, onToggle, label, sub, disabled }: { on: boolean; on
         <b className="block font-semibold">{label}</b>
         {sub && <span className="text-sm text-muted">{sub}</span>}
       </span>
-      <span className={cx('relative h-8 w-[52px] shrink-0 rounded-full transition-colors', on ? 'bg-success' : 'bg-sky')}>
-        <span className={cx('absolute left-[3px] top-[3px] h-[26px] w-[26px] rounded-full bg-white shadow transition-transform', on && 'translate-x-5')} />
-      </span>
+      <SwitchTrack on={on} />
     </button>
+  );
+}
+
+/** The track and knob; the knob position (not only colour) shows the state. */
+export function SwitchTrack({ on, small }: { on: boolean; small?: boolean }) {
+  return (
+    <span className={cx('relative shrink-0 rounded-full transition-colors', small ? 'h-6 w-10' : 'h-8 w-[52px]', on ? 'bg-accent' : 'bg-outline')}>
+      <span className={cx('absolute left-[3px] top-[3px] rounded-full bg-white shadow transition-transform', small ? 'h-[18px] w-[18px]' : 'h-[26px] w-[26px]', on && (small ? 'translate-x-4' : 'translate-x-5'))} />
+    </span>
   );
 }
 
@@ -70,7 +98,7 @@ export function Segmented<T extends string>({ options, value, onChange, small }:
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cx('flex flex-1 items-center justify-center gap-1.5 rounded-[10px] font-semibold', small ? 'h-9 text-sm' : 'h-[42px] text-[15px]', value === o.value ? 'bg-ink text-on-ink' : 'text-muted')}
+          className={cx('flex flex-1 items-center justify-center gap-1.5 rounded-[10px] font-semibold', small ? 'h-9 text-sm' : 'h-[42px] text-[15px]', value === o.value ? 'bg-select text-on-select' : 'text-muted')}
         >
           {o.icon}
           {o.label}
@@ -80,22 +108,32 @@ export function Segmented<T extends string>({ options, value, onChange, small }:
   );
 }
 
-type Tone = 'soon' | 'friend' | 'group' | 'partner' | 'live' | 'ok';
+/** Every tone carries text (and often an icon), so meaning never rests on colour alone. */
+type Tone = 'soon' | 'friend' | 'group' | 'partner' | 'live' | 'ok' | 'info';
 export function Badge({ tone = 'friend', children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
   const t: Record<Tone, string> = {
-    soon: 'bg-teak/15 text-ink',
-    friend: 'bg-ocean/12 text-ink',
-    group: 'bg-teak/15 text-ink ring-1 ring-inset ring-teak/45',
-    partner: 'bg-ink text-on-ink',
-    live: 'bg-dehler-red text-on-accent',
-    ok: 'bg-success/15 text-ink',
+    soon: 'bg-boat text-sail ring-1 ring-inset ring-sail/15',
+    friend: 'bg-ocean/15 text-ink',
+    group: 'bg-teak/25 text-ink ring-1 ring-inset ring-teak',
+    partner: 'bg-teak text-sail',
+    live: 'bg-sky text-sail',
+    ok: 'bg-ocean/15 text-ink',
+    info: 'bg-fill text-muted',
   };
   return <span className={cx('inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-semibold', t[tone], className)}>{children}</span>;
 }
 
-/** Marks every Scope B (MVP+) screen and entry point. */
+/** Marks every Scope B (MVP+) screen and entry point. Hidden in focus-group mode (?badges=off). */
 export function MvpBadge({ className }: { className?: string }) {
-  return <span className={cx('inline-flex h-[18px] shrink-0 items-center rounded-full bg-teak/15 px-1.5 text-[10px] font-bold leading-none tracking-wide text-ink ring-1 ring-inset ring-teak/60', className)}>MVP+</span>;
+  const show = useApp((s) => s.badges);
+  if (!show) return null;
+  return <span className={cx('inline-flex h-[18px] shrink-0 items-center rounded-[5px] bg-sky px-1.5 text-[10px] font-bold leading-none tracking-wide text-sail', className)}>MVP+</span>;
+}
+
+export function ComingSoon() {
+  const show = useApp((s) => s.badges);
+  if (!show) return null;
+  return <Badge tone="soon"><Clock size={12} strokeWidth={2.2} />Coming soon</Badge>;
 }
 
 export function Avatar({ initial, bg, size = 44, ring, children, className }: { initial?: string; bg: string; size?: number; ring?: 'ocean' | 'teak' | false; children?: ReactNode; className?: string }) {
@@ -129,10 +167,6 @@ export function Sheet({ onClose, children, title, z = 30, label, badge }: { onCl
       </div>
     </>
   );
-}
-
-export function ComingSoon() {
-  return <Badge tone="soon">Coming soon</Badge>;
 }
 
 export { cx };

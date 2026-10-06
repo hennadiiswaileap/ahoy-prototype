@@ -1,9 +1,9 @@
-import { ChevronLeft, ChevronRight, Users, Globe, Lock, LogOut, Trash2, MapPin, X, Sailboat, Compass, SunMoon, Monitor, Sun, Moon } from 'lucide-react';
+import { ChevronRight, Users, Globe, Lock, LogOut, Trash2, MapPin, X, Sailboat, Compass, SunMoon, Monitor, Sun, Moon } from 'lucide-react';
 import { useApp } from '../store';
 import { APP } from '../config';
 import type { ThemeMode } from '../theme';
 import { PresetAvatar } from '../components/art';
-import { Avatar, Badge, Button, IconButton, MvpBadge, Switch, cx } from '../components/ui';
+import { Avatar, Badge, Button, IconButton, MvpBadge, ScreenHeader, Switch, cx } from '../components/ui';
 import { useBoatInfos } from '../hooks';
 import { avatarBg } from './MapScreen';
 import { CONTACT_META } from './Onboarding';
@@ -20,7 +20,7 @@ const Row = ({ Icon, label, value, onClick, red, badge }: { Icon: typeof Users; 
     <Icon size={22} strokeWidth={1.75} className={red ? 'text-danger' : 'text-ocean'} />
     <b className="flex flex-1 items-center gap-2 font-semibold">{label}{badge}</b>
     {value != null && <span className="text-[15px] text-muted">{value}</span>}
-    {!red && label !== 'Sign out' && <ChevronRight size={18} className="text-sky" />}
+    {!red && label !== 'Sign out' && <ChevronRight size={18} className="text-muted" />}
   </button>
 );
 
@@ -28,10 +28,8 @@ function SubPage({ title, children, white }: { title: string; children: React.Re
   const s = useApp();
   return (
     <div className={cx('absolute inset-0 z-[25] animate-slide-in overflow-y-auto', white ? 'bg-surface' : 'bg-background')}>
-      <div className={cx('sticky top-0 z-[2] flex items-center gap-2.5 px-3 py-2.5', white ? 'bg-surface' : 'bg-background')}>
-        <IconButton label="Back" onClick={() => s.set({ subpage: null })}><ChevronLeft size={24} strokeWidth={1.75} /></IconButton>
-        <h1 className="text-[22px] font-semibold">{title}</h1>
-      </div>
+      <ScreenHeader title={title} back={() => s.set({ subpage: null })} />
+      <div className="h-3.5" />
       {children}
     </div>
   );
@@ -54,7 +52,8 @@ export function ProfileScreen() {
   const community = p.vertical === 'sailing' ? 'Sailing' : p.otherActivity.trim() ? `Other: ${p.otherActivity.trim()}` : 'Other';
   return (
     <div className="absolute inset-0 animate-fade-in overflow-y-auto bg-background pb-6">
-      <div className="sticky top-0 z-[2] bg-background px-5 pb-2.5 pt-[18px]"><h1 className="text-[22px] font-semibold">Profile</h1></div>
+      <ScreenHeader title="Profile" />
+      <div className="h-3.5" />
       <div className="px-4">
         <div className="flex items-center gap-4 rounded-2xl bg-surface p-4">
           <PresetAvatar index={p.avatar} size={76} />
@@ -62,8 +61,8 @@ export function ProfileScreen() {
             <b className="block text-xl font-semibold">{p.name}</b>
             <span className="block text-muted">{p.boat || 'Your boat'} · {p.model || (p.type === 'motor' ? 'Motorboat' : 'Sailboat')}</span>
             <span className="block text-[13px] text-muted">{p.mmsi ? `MMSI ${p.mmsi}` : 'No MMSI added'}</span>
-            <Badge tone="soon" className="mt-1.5 max-w-full">
-              {p.vertical === 'sailing' ? <Sailboat size={13} className="shrink-0 text-teak" /> : <Compass size={13} className="shrink-0 text-teak" />}
+            <Badge tone="friend" className="mt-1.5 max-w-full">
+              {p.vertical === 'sailing' ? <Sailboat size={13} className="shrink-0 text-ocean" /> : <Compass size={13} className="shrink-0 text-ocean" />}
               <span className="truncate">{community} community</span>
             </Badge>
           </div>
@@ -89,7 +88,7 @@ export function ProfileScreen() {
         <Row Icon={LogOut} label="Sign out" onClick={() => s.set({ confirm: 'signout' })} />
         <Row Icon={Trash2} label="Delete account" red onClick={() => s.set({ confirm: 'delete' })} />
       </Section>
-      <p className="mt-[18px] text-center text-[13px] text-muted">{APP.name} {APP.version} · Scope {b ? 'B (MVP+)' : 'A (MVP)'}</p>
+      <p className="mt-[18px] text-center text-[13px] text-muted">{APP.name} {APP.version}{s.badges ? ` · Scope ${b ? 'B (MVP+)' : 'A (MVP)'}` : ''}</p>
 
       {s.subpage === 'friends' && (
         <SubPage title="Friends">
@@ -97,9 +96,9 @@ export function ProfileScreen() {
             <div className="overflow-hidden rounded-2xl bg-surface">
               {friends.map((x) => (
                 <div key={x.id} className="flex min-h-14 items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
-                  <Avatar initial={x.name[0]} bg={avatarBg(x.id)} ring="ocean" />
+                  <Avatar initial={x.name[0]} bg={avatarBg(x.id)} ring="teak" />
                   <span className="min-w-0 flex-1"><b className="block font-semibold">{x.name}</b><span className="block text-sm text-muted">{x.boat} · {infos[x.id].distLabel} away</span></span>
-                  <button onClick={() => s.set({ tab: 'map', subpage: null, selectedId: x.id, follow: false, focus: { lon: infos[x.id].pos.lon, lat: infos[x.id].pos.lat, seq: Date.now() } })} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold ring-1 ring-inset ring-sky"><MapPin size={15} />Map</button>
+                  <button onClick={() => s.set({ tab: 'map', subpage: null, selectedId: x.id, follow: false, focus: { lon: infos[x.id].pos.lon, lat: infos[x.id].pos.lat, seq: Date.now() } })} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold ring-1 ring-inset ring-outline"><MapPin size={15} />Map</button>
                   <IconButton label={`Remove ${x.name} from friends`} className="text-muted" onClick={() => s.toggleFriend(x.id)}><X size={18} /></IconButton>
                 </div>
               ))}

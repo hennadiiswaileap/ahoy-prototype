@@ -11,7 +11,7 @@ import type { Group } from '../demoGroups';
 import { useApp } from '../store';
 import { clock, posAt, userTrack, TRACKS, distanceM, circleRing, unitFor, unitMetres, memberId } from '../sim';
 import { mapPeople, privateGroupMates } from '../hooks';
-import { HULL, DECK, PERSON, ANCHOR } from '../components/art';
+import { HULL, DECK, PERSON, ANCHOR, BADGE_CHECK } from '../components/art';
 import { MAP_THEME } from '../theme';
 
 const mapTheme = (dark: boolean) => MAP_THEME[dark ? 'dark' : 'light'];
@@ -102,16 +102,24 @@ export function MapView() {
       el.setAttribute('aria-label', `${m.name} marina`);
       el.innerHTML = `<span class="pin"><svg viewBox="0 0 24 24">${ANCHOR}</svg></span><span class="name">${m.name}</span>`;
       el.addEventListener('click', (e) => { e.stopPropagation(); useApp.getState().set({ marinaId: m.id, selectedId: null, contactOpen: false }); });
-      const marker = new maplibregl.Marker({ element: el }).setLngLat([m.lon, m.lat]).addTo(map);
+      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([m.lon, m.lat]).addTo(map);
       return { id: m.id, marker, el, base: el.className, cls: '' };
     });
 
-    // --- "you" marker ---
+    // --- "you" marker: a near-black boat (a person on the ski trip) with a Sky halo ---
     const youEl = document.createElement('div');
     youEl.className = 'you-mk';
-    youEl.innerHTML = '<span class="pulse"></span><span class="arrow"><svg viewBox="0 0 44 44" width="44" height="44"><path class="cone" d="M22 2 L29 17 L22 14 L15 17 Z"/></svg></span><span class="dot"></span>';
-    const youArrow = youEl.querySelector('.arrow') as HTMLElement;
     const you = new maplibregl.Marker({ element: youEl }).setLngLat([me0.lon, me0.lat]).addTo(map);
+    let youShape = '';
+    let youGlyph: HTMLElement = youEl;
+    const setYouShape = (sc: string) => {
+      youShape = sc;
+      youEl.innerHTML = sc === 'ski'
+        ? `<span class="pulse"></span><span class="glyph person"><svg viewBox="0 0 24 24">${PERSON}</svg></span>`
+        : `<span class="pulse"></span><span class="glyph"><svg viewBox="0 0 24 24"><path class="hull" d="${HULL.sail}"/><path class="deck" d="${DECK.sail}"/></svg></span>`;
+      youGlyph = youEl.querySelector('.glyph') as HTMLElement;
+    };
+    setYouShape(st.scenario);
 
     // --- boats (or people on the ski trip) ---
     const recs = new Map<string, MarkerRec>();
@@ -127,9 +135,11 @@ export function MapView() {
         el.className = 'boat-mk';
         el.setAttribute('aria-label', person ? `${b.name}, ${b.activity}` : `${b.boat}, ${b.name}`);
         const type = b.type ?? 'sail';
+        // The badge is a sibling of the glyph so it doesn't rotate with the boat.
+        const badge = `<span class="mk-badge"><svg viewBox="0 0 24 24">${BADGE_CHECK}</svg></span>`;
         el.innerHTML = person
-          ? `<span class="glyph person"><svg viewBox="0 0 24 24">${PERSON}</svg></span><span class="name">${b.name}</span>`
-          : `<span class="glyph"><svg viewBox="0 0 24 24"><path class="hull" d="${HULL[type]}"/><path class="deck" d="${DECK[type]}"/></svg></span><span class="name">${b.boat}</span>`;
+          ? `<span class="glyph person"><svg viewBox="0 0 24 24">${PERSON}</svg></span>${badge}<span class="name">${b.name}</span>`
+          : `<span class="glyph"><svg viewBox="0 0 24 24"><path class="hull" d="${HULL[type]}"/><path class="deck" d="${DECK[type]}"/></svg></span>${badge}<span class="name">${b.boat}</span>`;
         el.addEventListener('click', (e) => { e.stopPropagation(); useApp.getState().set({ selectedId: b.id, contactOpen: false, marinaId: null }); });
         const marker = new maplibregl.Marker({ element: el }).setLngLat(b.route.center).addTo(map);
         recs.set(b.id, { marker, el, glyph: el.querySelector('.glyph') as HTMLElement, base: el.className, cls: '', person, stale: b.staleMinutes != null });
@@ -164,7 +174,8 @@ export function MapView() {
           if (grp.length < 2) return;
           grp.forEach((b) => { used.add(b.id); hide.add(b.id); });
           const ll = map.unproject([grp.reduce((t, b) => t + b.p.x, 0) / grp.length, grp.reduce((t, b) => t + b.p.y, 0) / grp.length]);
-          clusterMarkers.push(new maplibregl.Marker({ element: make(grp, ll) }).setLngLat(ll).addTo(map));
+          const el = make(grp, ll);
+          clusterMarkers.push(new maplibregl.Marker({ element: el, anchor: el.classList.contains('marina-mk') ? 'bottom' : 'center' }).setLngLat(ll).addTo(map));
         });
       };
       if (s.showMarinas && s.scenario === 'sail') {
@@ -172,7 +183,7 @@ export function MapView() {
           const el = document.createElement('button');
           el.className = 'marina-mk';
           el.setAttribute('aria-label', `${grp.length} marinas, zoom in`);
-          el.innerHTML = `<span class="pin"><svg viewBox="0 0 24 24">${ANCHOR}</svg></span><span style="position:absolute;top:2px;right:2px;min-width:16px;height:16px;border-radius:8px;background:var(--ink);color:var(--on-ink);font:600 10px var(--font-sans);display:flex;align-items:center;justify-content:center;padding:0 3px">${grp.length}</span>`;
+          el.innerHTML = `<span class="pin"><svg viewBox="0 0 24 24">${ANCHOR}</svg></span><span class="count">${grp.length}</span>`;
           el.addEventListener('click', (e) => { e.stopPropagation(); useApp.getState().set({ follow: false }); map.easeTo({ center: ll, zoom: map.getZoom() + 1.6 }); });
           return el;
         }, hiddenMarinas);
@@ -196,7 +207,8 @@ export function MapView() {
       const t = clock.now();
       const me = posAt(userTrack(s.scenario), t);
       you.setLngLat([me.lon, me.lat]);
-      youArrow.style.transform = `rotate(${me.heading}deg)`;
+      if (s.scenario !== youShape) setYouShape(s.scenario);
+      if (s.scenario === 'sail') youGlyph.style.transform = `rotate(${me.heading}deg)`;
       const off = !s.sharing || s.visibility === 'invisible';
       youEl.classList.toggle('off', off);
       youEl.classList.toggle('limited', !off && s.scope === 'b' && s.visibility === 'groups');
@@ -209,7 +221,8 @@ export function MapView() {
         r.marker.setLngLat([p.lon, p.lat]);
         if (!r.person) r.glyph.style.transform = `rotate(${p.heading}deg)`;
         const mid = memberId(id);
-        const ring = s.scope === 'b' ? (mates.has(mid) ? 'grp' : '') : s.friends[id] ? 'friend' : '';
+        // Friends (Scope A) and private-group members (Scope B) share one look: Teak ring + badge.
+        const ring = (s.scope === 'b' ? mates.has(mid) : !!s.friends[id]) ? 'mate' : '';
         const out = g ? !g.members.includes(mid) : false;
         const vis = out || hidden.has(id) ? 'hid' : !g && distanceM(me, p) > R ? 'far' : '';
         const cls = [r.base, ring, r.stale ? 'stale' : '', s.selectedId === id ? 'sel' : '', vis].join(' ');

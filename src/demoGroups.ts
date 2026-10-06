@@ -9,7 +9,7 @@ import { PEOPLE, EXTRA_BOATS, type SceneKind } from './demoData';
 
 export type GroupType = 'community' | 'region' | 'private';
 export type GroupIcon = 'sailboat' | 'globe' | 'map' | 'home' | 'anchor' | 'users' | 'flag' | 'sun';
-export type GroupTone = 'teak' | 'ocean' | 'red' | 'sky' | 'success';
+export type GroupTone = 'teak' | 'ocean' | 'sky' | 'grey';
 
 export interface Group {
   id: string;
@@ -24,9 +24,15 @@ export interface Group {
   code?: string;
 }
 
+/** Who can see a post. */
+export interface PostAudience { kind: 'everyone' | 'groups'; groups: string[] }
+/** Who can see where a post was taken. Separate from the post audience (spec FEED-02). */
+export interface LocationAudience { kind: 'nobody' | 'groups' | 'same'; groups: string[] }
+
 export interface GroupPost {
   id: string;
-  groupId: string;
+  audience: PostAudience;
+  loc: LocationAudience;
   authorId: string;
   author: string;
   at: number;
@@ -63,7 +69,7 @@ const ALL_IDS = [...PEOPLE.map((p) => p.id), ...EXTRA_BOATS.map((x) => x.id)];
 /** Groups the user is in at the start of the demo. */
 export const GROUPS: Group[] = [
   { id: 'family', name: 'Family Crew', type: 'private', icon: 'home', tone: 'teak', members: [ME, 'b1', 'b3', 'b5', 'm1', 'm2'], memberCount: 6, admin: true, code: 'FAMILY-72' },
-  { id: 'pier7', name: 'Pier 7 Friends', type: 'private', icon: 'anchor', tone: 'red', members: [ME, 'b2', 'b6', 'b8', 'b14', 'm3', 'm4', 'm5'], memberCount: 8, code: 'PIER7-4K' },
+  { id: 'pier7', name: 'Pier 7 Friends', type: 'private', icon: 'anchor', tone: 'sky', members: [ME, 'b2', 'b6', 'b8', 'b14', 'm3', 'm4', 'm5'], memberCount: 8, code: 'PIER7-4K' },
   { id: 'kiel', name: 'Kiel Fjord', type: 'region', icon: 'map', tone: 'ocean', members: [ME, 'b1', 'b2', 'b3', 'b6', 'b7', 'b8', 'b10', 'b11', 'b13', 'b14'], memberCount: 1284 },
   { id: 'baltic', name: 'Baltic', type: 'region', icon: 'globe', tone: 'sky', members: [ME, ...ALL_IDS], memberCount: 12460 },
   { id: 'sailing', name: 'Sailing', type: 'community', icon: 'sailboat', tone: 'ocean', members: [ME, ...SAIL_IDS], memberCount: 48210 },
@@ -78,7 +84,7 @@ export const SUGGESTED_REGIONS: Group[] = [
 /** Private groups you can join by code. The demo code is offered as a shortcut chip. */
 export const DEMO_JOIN_CODE = 'LABOE-24';
 export const CODE_GROUPS: Record<string, Group> = {
-  [DEMO_JOIN_CODE]: { id: 'laboe', name: 'Laboe Harbour Crew', type: 'private', icon: 'flag', tone: 'success', members: ['b4', 'b11', 'b12', 'm3'], memberCount: 11, code: DEMO_JOIN_CODE },
+  [DEMO_JOIN_CODE]: { id: 'laboe', name: 'Laboe Harbour Crew', type: 'private', icon: 'flag', tone: 'ocean', members: ['b4', 'b11', 'b12', 'm3'], memberCount: 11, code: DEMO_JOIN_CODE },
 };
 
 export const INITIAL_UNREAD: Record<string, number> = { family: 2, pier7: 3 };
@@ -87,16 +93,16 @@ const ago = (min: number) => Date.now() - min * 60_000;
 
 export function initialPosts(): GroupPost[] {
   return [
-    { id: 'fp1', groupId: 'family', authorId: 'b1', author: 'Frauke', at: ago(25), scene: 'sunset', hull: '#F4F1EA', caption: 'Windspiel is back in the water. First sail of the autumn!', place: 'Off Strande', likes: 5, comments: 2 },
-    { id: 'pp1', groupId: 'pier7', authorId: 'b2', author: 'Jens', at: ago(50), scene: 'day', hull: '#0B2545', caption: 'Pier 7 barbecue is on: Saturday 18:00. Bring your own sausages.', place: 'Kiel-Schilksee', likes: 7, comments: 4 },
-    { id: 'kp1', groupId: 'kiel', authorId: 'b6', author: 'Anke', at: ago(70), scene: 'lighthouse', hull: '#F4F1EA', caption: 'Heads-up: busy ferry traffic at the Friedrichsort narrows this afternoon.', place: 'Friedrichsort', likes: 23, comments: 8 },
-    { id: 'fp2', groupId: 'family', authorId: 'b5', author: 'Mette', at: ago(180), scene: 'harbour', hull: '#7A2E2A', caption: 'Anchored off Laboe, kettle on. Who’s coming for dinner?', place: 'Laboe', likes: 4, comments: 3 },
-    { id: 'bp1', groupId: 'baltic', authorId: 'b7', author: 'Malte', at: ago(240), scene: 'dawn', hull: '#0B2545', caption: 'Forecast: westerly 5 Bft tomorrow afternoon. Leave early.', place: 'Kiel Fjord', likes: 58, comments: 14 },
-    { id: 'pp2', groupId: 'pier7', authorId: 'b8', author: 'Wiebke', at: ago(300), scene: 'harbour', hull: '#F4F1EA', caption: 'Found a berth in Düsternbrook at last.', place: 'Düsternbrook', likes: 9, comments: 2 },
-    { id: 'kp2', groupId: 'kiel', authorId: 'b11', author: 'Lars', at: ago(420), scene: 'race', hull: '#F4F1EA', caption: 'Rounded the lighthouse at 6 knots on a beam reach. Best sail of the season.', place: 'Kiel Lighthouse', likes: 41, comments: 6 },
-    { id: 'sp1', groupId: 'sailing', authorId: 'b12', author: 'Ida', at: ago(540), scene: 'sunset', hull: '#0B2545', caption: 'Golden hour, anchored, nowhere to be.', place: 'Marstal', likes: 132, comments: 17 },
-    { id: 'fp3', groupId: 'family', authorId: 'b3', author: 'Henrik', at: ago(1560), scene: 'race', hull: '#1D5C96', caption: 'Tried the new spinnaker with Paul as crew. No twists!', place: 'Strande', likes: 6, comments: 1 },
-    { id: 'pp3', groupId: 'pier7', authorId: 'b14', author: 'Freya', at: ago(2900), scene: 'dawn', hull: '#1D5C96', caption: 'Early start, glassy water and nobody else around.', place: 'Kiel Lighthouse', likes: 11, comments: 0 },
+    { id: 'fp1', audience: { kind: 'groups', groups: ['family'] }, loc: { kind: 'same', groups: [] }, authorId: 'b1', author: 'Frauke', at: ago(25), scene: 'sunset', hull: '#F4F1EA', caption: 'Windspiel is back in the water. First sail of the autumn!', place: 'Off Strande', likes: 5, comments: 2 },
+    { id: 'pp1', audience: { kind: 'groups', groups: ['pier7'] }, loc: { kind: 'same', groups: [] }, authorId: 'b2', author: 'Jens', at: ago(50), scene: 'day', hull: '#0B2545', caption: 'Pier 7 barbecue is on: Saturday 18:00. Bring your own sausages.', place: 'Kiel-Schilksee', likes: 7, comments: 4 },
+    { id: 'kp1', audience: { kind: 'groups', groups: ['kiel'] }, loc: { kind: 'same', groups: [] }, authorId: 'b6', author: 'Anke', at: ago(70), scene: 'lighthouse', hull: '#F4F1EA', caption: 'Heads-up: busy ferry traffic at the Friedrichsort narrows this afternoon.', place: 'Friedrichsort', likes: 23, comments: 8 },
+    { id: 'fp2', audience: { kind: 'groups', groups: ['family'] }, loc: { kind: 'same', groups: [] }, authorId: 'b5', author: 'Mette', at: ago(180), scene: 'harbour', hull: '#7A2E2A', caption: 'Anchored off Laboe, kettle on. Who’s coming for dinner?', place: 'Laboe', likes: 4, comments: 3 },
+    { id: 'bp1', audience: { kind: 'groups', groups: ['baltic'] }, loc: { kind: 'nobody', groups: [] }, authorId: 'b7', author: 'Malte', at: ago(240), scene: 'dawn', hull: '#0B2545', caption: 'Forecast: westerly 5 Bft tomorrow afternoon. Leave early.', place: 'Kiel Fjord', likes: 58, comments: 14 },
+    { id: 'pp2', audience: { kind: 'groups', groups: ['pier7'] }, loc: { kind: 'nobody', groups: [] }, authorId: 'b8', author: 'Wiebke', at: ago(300), scene: 'harbour', hull: '#F4F1EA', caption: 'Found a berth in Düsternbrook at last.', place: 'Düsternbrook', likes: 9, comments: 2 },
+    { id: 'kp2', audience: { kind: 'everyone', groups: [] }, loc: { kind: 'groups', groups: ['kiel'] }, authorId: 'b11', author: 'Lars', at: ago(420), scene: 'race', hull: '#F4F1EA', caption: 'Rounded the lighthouse at 6 knots on a beam reach. Best sail of the season.', place: 'Kiel Lighthouse', likes: 41, comments: 6 },
+    { id: 'sp1', audience: { kind: 'groups', groups: ['sailing'] }, loc: { kind: 'same', groups: [] }, authorId: 'b12', author: 'Ida', at: ago(540), scene: 'sunset', hull: '#0B2545', caption: 'Golden hour, anchored, nowhere to be.', place: 'Marstal', likes: 132, comments: 17 },
+    { id: 'fp3', audience: { kind: 'groups', groups: ['family'] }, loc: { kind: 'nobody', groups: [] }, authorId: 'b3', author: 'Henrik', at: ago(1560), scene: 'race', hull: '#1D5C96', caption: 'Tried the new spinnaker with Paul as crew. No twists!', place: 'Strande', likes: 6, comments: 1 },
+    { id: 'pp3', audience: { kind: 'groups', groups: ['pier7'] }, loc: { kind: 'same', groups: [] }, authorId: 'b14', author: 'Freya', at: ago(2900), scene: 'dawn', hull: '#1D5C96', caption: 'Early start, glassy water and nobody else around.', place: 'Kiel Lighthouse', likes: 11, comments: 0 },
   ];
 }
 
@@ -154,8 +160,8 @@ export const CANNED: Record<string, { authorId: string; text: string }[]> = {
 
 export function skiPosts(): GroupPost[] {
   return [
-    { id: 'skp1', groupId: 'family', authorId: 'b1', author: 'Frauke', at: ago(12), scene: 'ski', hull: '#F4F1EA', caption: 'First run of the day. Perfect snow!', place: 'Top station', likes: 4, comments: 1, ski: true },
-    { id: 'skp2', groupId: 'family', authorId: 'm2', author: 'Paul', at: ago(30), scene: 'lift', hull: '#F4F1EA', caption: 'No queue at the chairlift right now.', place: 'Valley station', likes: 3, comments: 0, ski: true },
+    { id: 'skp1', audience: { kind: 'groups', groups: ['family'] }, loc: { kind: 'same', groups: [] }, authorId: 'b1', author: 'Frauke', at: ago(12), scene: 'ski', hull: '#F4F1EA', caption: 'First run of the day. Perfect snow!', place: 'Top station', likes: 4, comments: 1, ski: true },
+    { id: 'skp2', audience: { kind: 'groups', groups: ['family'] }, loc: { kind: 'same', groups: [] }, authorId: 'm2', author: 'Paul', at: ago(30), scene: 'lift', hull: '#F4F1EA', caption: 'No queue at the chairlift right now.', place: 'Valley station', likes: 3, comments: 0, ski: true },
   ];
 }
 
