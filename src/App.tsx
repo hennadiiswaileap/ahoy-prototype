@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Compass, Image, MessageCircle, User, Users } from 'lucide-react';
-import { useApp, applyUrlFlags, TABS_BY_SCOPE, type Tab } from './store';
+import { useApp, TABS_BY_SCOPE, type Tab } from './store';
 import { APP } from './config';
 import { useThemeSync, useUiClock } from './hooks';
 import { MvpBadge, cx } from './components/ui';
@@ -124,7 +124,6 @@ function useFramed() {
 export default function App() {
   useUiClock();
   useThemeSync();
-  useEffect(() => { applyUrlFlags(); }, []);
   const { framed, scale } = useFramed();
   const dark = useApp((s) => s.dark);
   const badges = useApp((s) => s.badges);

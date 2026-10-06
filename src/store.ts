@@ -3,7 +3,7 @@ import { PEOPLE, EXTRA_BOATS, DEMO_PHONE, MARINAS, type ContactKind, type BoatTy
 import { GROUPS, INITIAL_UNREAD, CANNED, SKI_CANNED, ASHORE, CODE_GROUPS, ME, initialPosts, initialMessages, skiPosts, skiMessages, type Group, type GroupPost, type ChatMsg, type GroupIcon, type GroupTone, type PostAudience, type LocationAudience } from './demoGroups';
 import { MAP, SIM } from './config';
 import { clock, spawnExtra, posAt, userTrack, distanceM, type Boat, type Scenario } from './sim';
-import { loadThemeMode, resolveTheme, saveThemeMode, type ThemeMode } from './theme';
+import { applyResolvedTheme, loadThemeMode, resolveTheme, saveThemeMode, type ThemeMode } from './theme';
 
 export type Screen = 'welcome' | 'signin' | 'phone' | 'code' | 'community' | 'profile' | 'permissions' | 'app';
 export type Tab = 'map' | 'feed' | 'chats' | 'groups' | 'profile';
@@ -304,7 +304,12 @@ export const useApp = create<State>((set, get) => {
       });
       get().showToast(scope === 'b' ? 'Scope B (MVP+): groups on' : 'Scope A (MVP)', 'info');
     },
-    setTheme: (m) => { saveThemeMode(m); set({ theme: m }); },
+    setTheme: (m) => {
+      saveThemeMode(m);
+      const r = resolveTheme(m);
+      applyResolvedTheme(r);
+      set({ theme: m, dark: r === 'dark' });
+    },
     setScenario: (sc) => {
       const s = get();
       if (s.scenario === sc) return;
