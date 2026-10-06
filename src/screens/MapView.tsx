@@ -6,49 +6,71 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 maplibregl.setWorkerUrl(workerUrl);
 import { MAP } from '../config';
+import { MARINAS } from '../demoData';
+import type { Group } from '../demoGroups';
 import { useApp } from '../store';
-import { clock, posAt, USER_TRACK, TRACKS, distanceM, circleRing, NM } from '../sim';
-import { allBoats } from '../hooks';
-import { HULL, DECK } from '../components/art';
+import { clock, posAt, userTrack, TRACKS, distanceM, circleRing, unitFor, unitMetres, memberId } from '../sim';
+import { mapPeople, privateGroupMates } from '../hooks';
+import { HULL, DECK, PERSON, ANCHOR } from '../components/art';
+import { MAP_THEME } from '../theme';
 
-const STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: { type: 'raster', tiles: [MAP.osmTiles], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors' },
-    seamark: { type: 'raster', tiles: [MAP.seamarkTiles], tileSize: 256, maxzoom: 18, attribution: '© OpenSeaMap contributors' },
-  },
-  layers: [
-    { id: 'bg', type: 'background', paint: { 'background-color': '#C9DDEE' } },
-    { id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': -0.45, 'raster-contrast': -0.08, 'raster-brightness-min': 0.08 } },
-    { id: 'seamark', type: 'raster', source: 'seamark', minzoom: 9 },
-  ],
-};
+const mapTheme = (dark: boolean) => MAP_THEME[dark ? 'dark' : 'light'];
 
-export function zoomForRadius(nm: number, lat = 54.43) {
-  const px = 190;
-  return Math.log2((156543.03 * Math.cos((lat * Math.PI) / 180) * px) / (nm * NM));
+function makeStyle(dark: boolean): maplibregl.StyleSpecification {
+  const t = mapTheme(dark);
+  return {
+    version: 8,
+    sources: {
+      osm: { type: 'raster', tiles: [MAP.osmTiles], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors' },
+      seamark: { type: 'raster', tiles: [MAP.seamarkTiles], tileSize: 256, maxzoom: 18, attribution: '© OpenSeaMap contributors' },
+    },
+    layers: [
+      { id: 'bg', type: 'background', paint: { 'background-color': t.background } },
+      { id: 'osm', type: 'raster', source: 'osm', paint: { ...t.raster } },
+      { id: 'seamark', type: 'raster', source: 'seamark', minzoom: 9 },
+    ],
+  };
 }
 
-interface MarkerRec { marker: Marker; el: HTMLButtonElement; glyph: HTMLElement; cls: string }
+/** Zoom at which `metres` is about 190 px on screen. */
+export function zoomForRadius(metres: number, lat: number) {
+  return Math.log2((156543.03 * Math.cos((lat * Math.PI) / 180) * 190) / metres);
+}
+
+/** `base` keeps MapLibre's own classes (maplibregl-marker…), which position the marker. Never drop them. */
+interface MarkerRec { marker: Marker; el: HTMLButtonElement; glyph: HTMLElement; base: string; cls: string; person: boolean; stale: boolean }
+interface MarinaRec { id: string; marker: Marker; el: HTMLButtonElement; base: string; cls: string }
 
 export function MapView() {
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
+  const ready = useRef(false);
+  const syncRef = useRef<() => void>(() => {});
   const zoomSeq = useApp((s) => s.zoomSeq);
   const recenterSeq = useApp((s) => s.recenterSeq);
+  const fitSeq = useApp((s) => s.fitSeq);
   const layer = useApp((s) => s.layer);
   const focus = useApp((s) => s.focus);
+  const dark = useApp((s) => s.dark);
+  const scenario = useApp((s) => s.scenario);
+
+  /** Runs now if the map has loaded, otherwise once it has. */
+  const whenReady = (fn: (m: MLMap) => void) => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (ready.current) fn(map); else map.once('load', () => fn(map));
+  };
 
   useEffect(() => {
     if (!box.current) return;
     const st = useApp.getState();
-    const me0 = posAt(USER_TRACK, clock.now());
+    const me0 = posAt(userTrack(st.scenario), clock.now());
     const map = new maplibregl.Map({
       container: box.current,
-      style: STYLE,
+      style: makeStyle(st.dark),
       center: [me0.lon, me0.lat],
-      zoom: zoomForRadius(st.radius),
-      minZoom: 7.5,
+      zoom: zoomForRadius(st.radius * unitMetres(unitFor(st.scenario)), me0.lat),
+      minZoom: 6,
       maxZoom: 16,
       attributionControl: { compact: true },
       dragRotate: false,
@@ -61,13 +83,27 @@ export function MapView() {
     let interacting = false;
     map.on('dragstart', () => { interacting = true; useApp.getState().set({ follow: false }); });
     map.on('dragend', () => { interacting = false; });
-    map.on('zoomstart', (e: any) => { if ((e as any).originalEvent) interacting = true; });
+    map.on('zoomstart', (e: any) => { if (e.originalEvent) interacting = true; });
     map.on('zoomend', () => { interacting = false; });
-    map.on('click', () => { const s = useApp.getState(); if (s.selectedId) return; });
     map.on('load', () => {
-      map.addSource('radius', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [circleRing(me0, st.radius * NM)] } } });
-      map.addLayer({ id: 'radius-fill', type: 'fill', source: 'radius', paint: { 'fill-color': '#8DB3D6', 'fill-opacity': 0.08 } });
-      map.addLayer({ id: 'radius-line', type: 'line', source: 'radius', paint: { 'line-color': '#1D5C96', 'line-opacity': 0.5, 'line-width': 1.5, 'line-dasharray': [3, 3] } });
+      ready.current = true;
+      const t = mapTheme(useApp.getState().dark);
+      map.addSource('radius', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [circleRing(me0, st.radius * unitMetres(unitFor(st.scenario)))] } } });
+      map.addLayer({ id: 'radius-fill', type: 'fill', source: 'radius', paint: { 'fill-color': t.radiusFill, 'fill-opacity': 0.08 } });
+      map.addLayer({ id: 'radius-line', type: 'line', source: 'radius', paint: { 'line-color': t.radiusLine, 'line-opacity': 0.55, 'line-width': 1.5, 'line-dasharray': [3, 3] } });
+      const s = useApp.getState();
+      map.setLayoutProperty('seamark', 'visibility', s.layer === 'nautical' && s.scenario === 'sail' ? 'visible' : 'none');
+    });
+
+    // --- marinas (added first so boats draw on top) ---
+    const marinas: MarinaRec[] = MARINAS.map((m) => {
+      const el = document.createElement('button');
+      el.className = 'marina-mk';
+      el.setAttribute('aria-label', `${m.name} marina`);
+      el.innerHTML = `<span class="pin"><svg viewBox="0 0 24 24">${ANCHOR}</svg></span><span class="name">${m.name}</span>`;
+      el.addEventListener('click', (e) => { e.stopPropagation(); useApp.getState().set({ marinaId: m.id, selectedId: null, contactOpen: false }); });
+      const marker = new maplibregl.Marker({ element: el }).setLngLat([m.lon, m.lat]).addTo(map);
+      return { id: m.id, marker, el, base: el.className, cls: '' };
     });
 
     // --- "you" marker ---
@@ -77,50 +113,80 @@ export function MapView() {
     const youArrow = youEl.querySelector('.arrow') as HTMLElement;
     const you = new maplibregl.Marker({ element: youEl }).setLngLat([me0.lon, me0.lat]).addTo(map);
 
-    // --- boat markers ---
+    // --- boats (or people on the ski trip) ---
     const recs = new Map<string, MarkerRec>();
-    const ensureMarkers = () => {
+    const syncMarkers = () => {
       const s = useApp.getState();
-      allBoats(s.extras).forEach((b) => {
+      const people = mapPeople(s.scenario, s.extras);
+      const ids = new Set(people.map((p) => p.id));
+      recs.forEach((r, id) => { if (!ids.has(id)) { r.marker.remove(); recs.delete(id); } });
+      people.forEach((b) => {
         if (recs.has(b.id)) return;
+        const person = !!b.activity;
         const el = document.createElement('button');
         el.className = 'boat-mk';
-        el.setAttribute('aria-label', `${b.boat}, ${b.name}`);
+        el.setAttribute('aria-label', person ? `${b.name}, ${b.activity}` : `${b.boat}, ${b.name}`);
         const type = b.type ?? 'sail';
-        el.innerHTML = `<span class="glyph"><svg viewBox="0 0 24 24"><path class="hull" d="${HULL[type]}"/><path class="deck" d="${DECK[type]}"/></svg></span><span class="name">${b.boat}</span>`;
-        el.addEventListener('click', (e) => { e.stopPropagation(); useApp.getState().set({ selectedId: b.id, contactOpen: false }); });
+        el.innerHTML = person
+          ? `<span class="glyph person"><svg viewBox="0 0 24 24">${PERSON}</svg></span><span class="name">${b.name}</span>`
+          : `<span class="glyph"><svg viewBox="0 0 24 24"><path class="hull" d="${HULL[type]}"/><path class="deck" d="${DECK[type]}"/></svg></span><span class="name">${b.boat}</span>`;
+        el.addEventListener('click', (e) => { e.stopPropagation(); useApp.getState().set({ selectedId: b.id, contactOpen: false, marinaId: null }); });
         const marker = new maplibregl.Marker({ element: el }).setLngLat(b.route.center).addTo(map);
-        recs.set(b.id, { marker, el, glyph: el.querySelector('.glyph') as HTMLElement, cls: '' });
+        recs.set(b.id, { marker, el, glyph: el.querySelector('.glyph') as HTMLElement, base: el.className, cls: '', person, stale: b.staleMinutes != null });
       });
     };
-    ensureMarkers();
-    const unsub = useApp.subscribe((s, p) => { if (s.extras !== p.extras) ensureMarkers(); });
+    syncRef.current = syncMarkers;
+    syncMarkers();
+    const unsub = useApp.subscribe((s, p) => { if (s.extras !== p.extras) syncMarkers(); });
+
+    // Scope B filter and teak rings, cached per groups array.
+    let lastGroups: Group[] | null = null;
+    let mates = new Set<string>();
+    const filterGroup = (s: ReturnType<typeof useApp.getState>) => (s.scope === 'b' && s.mapGroup !== 'all' ? s.groups.find((g) => g.id === s.mapGroup) : undefined);
 
     // --- clusters (screen-space, refreshed a few times per second) ---
     let clusterMarkers: Marker[] = [];
     let hidden = new Set<string>();
+    let hiddenMarinas = new Set<string>();
     let lastCluster = 0;
     const doClusters = () => {
       clusterMarkers.forEach((m) => m.remove());
       clusterMarkers = [];
       hidden = new Set();
+      hiddenMarinas = new Set();
+      const s = useApp.getState();
+      const g = filterGroup(s);
+      const group = <T extends { id: string; p: maplibregl.Point }>(pts: T[], dist: number, make: (grp: T[], ll: maplibregl.LngLat) => HTMLElement, hide: Set<string>) => {
+        const used = new Set<string>();
+        pts.forEach((a) => {
+          if (used.has(a.id)) return;
+          const grp = pts.filter((b) => !used.has(b.id) && Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y) < dist);
+          if (grp.length < 2) return;
+          grp.forEach((b) => { used.add(b.id); hide.add(b.id); });
+          const ll = map.unproject([grp.reduce((t, b) => t + b.p.x, 0) / grp.length, grp.reduce((t, b) => t + b.p.y, 0) / grp.length]);
+          clusterMarkers.push(new maplibregl.Marker({ element: make(grp, ll) }).setLngLat(ll).addTo(map));
+        });
+      };
+      if (s.showMarinas && s.scenario === 'sail') {
+        group(marinas.map((m) => ({ id: m.id, p: map.project(m.marker.getLngLat()) })), 28, (grp, ll) => {
+          const el = document.createElement('button');
+          el.className = 'marina-mk';
+          el.setAttribute('aria-label', `${grp.length} marinas, zoom in`);
+          el.innerHTML = `<span class="pin"><svg viewBox="0 0 24 24">${ANCHOR}</svg></span><span style="position:absolute;top:2px;right:2px;min-width:16px;height:16px;border-radius:8px;background:var(--ink);color:var(--on-ink);font:600 10px var(--font-sans);display:flex;align-items:center;justify-content:center;padding:0 3px">${grp.length}</span>`;
+          el.addEventListener('click', (e) => { e.stopPropagation(); useApp.getState().set({ follow: false }); map.easeTo({ center: ll, zoom: map.getZoom() + 1.6 }); });
+          return el;
+        }, hiddenMarinas);
+      }
       if (map.getZoom() >= MAP.clusterBelowZoom) return;
-      const pts = [...recs.entries()].map(([id, r]) => ({ id, p: map.project(r.marker.getLngLat()) }));
-      const used = new Set<string>();
-      pts.forEach((a) => {
-        if (used.has(a.id)) return;
-        const grp = pts.filter((b) => !used.has(b.id) && Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y) < 40);
-        if (grp.length < 2) return;
-        grp.forEach((b) => { used.add(b.id); hidden.add(b.id); });
-        const cx = grp.reduce((s, b) => s + b.p.x, 0) / grp.length, cy = grp.reduce((s, b) => s + b.p.y, 0) / grp.length;
-        const ll = map.unproject([cx, cy]);
+      const pts = [...recs.entries()].filter(([id]) => !g || g.members.includes(memberId(id))).map(([id, r]) => ({ id, p: map.project(r.marker.getLngLat()) }));
+      group(pts, 40, (grp, ll) => {
         const el = document.createElement('button');
         el.className = 'cluster-mk';
         el.textContent = String(grp.length);
         el.setAttribute('aria-label', `${grp.length} boats, zoom in`);
         el.addEventListener('click', (e) => { e.stopPropagation(); useApp.getState().set({ follow: false }); map.easeTo({ center: ll, zoom: map.getZoom() + 2 }); });
-        clusterMarkers.push(new maplibregl.Marker({ element: el }).setLngLat(ll).addTo(map));
-      });
+        return el;
+      }, hidden);
     };
 
     // --- animation loop: positions are analytic, so every frame is exact ---
@@ -128,48 +194,56 @@ export function MapView() {
     const frame = (now: number) => {
       const s = useApp.getState();
       const t = clock.now();
-      const me = posAt(USER_TRACK, t);
+      const me = posAt(userTrack(s.scenario), t);
       you.setLngLat([me.lon, me.lat]);
       youArrow.style.transform = `rotate(${me.heading}deg)`;
       const off = !s.sharing || s.visibility === 'invisible';
       youEl.classList.toggle('off', off);
+      youEl.classList.toggle('limited', !off && s.scope === 'b' && s.visibility === 'groups');
       if (s.follow && !interacting && !map.isMoving()) map.setCenter([me.lon, me.lat]);
-      const R = s.radius * NM;
-      allBoats(s.extras).forEach((b) => {
-        const r = recs.get(b.id);
-        if (!r) return;
-        const p = posAt(TRACKS[b.id], t);
+      const R = s.radius * unitMetres(unitFor(s.scenario));
+      if (s.groups !== lastGroups) { lastGroups = s.groups; mates = privateGroupMates(s.groups); }
+      const g = filterGroup(s);
+      recs.forEach((r, id) => {
+        const p = posAt(TRACKS[id], t);
         r.marker.setLngLat([p.lon, p.lat]);
-        r.glyph.style.transform = `rotate(${p.heading}deg)`;
-        const cls = ['boat-mk', s.friends[b.id] ? 'friend' : '', b.staleMinutes != null ? 'stale' : '', s.selectedId === b.id ? 'sel' : '', hidden.has(b.id) ? 'hid' : distanceM(me, p) > R ? 'far' : ''].join(' ');
+        if (!r.person) r.glyph.style.transform = `rotate(${p.heading}deg)`;
+        const mid = memberId(id);
+        const ring = s.scope === 'b' ? (mates.has(mid) ? 'grp' : '') : s.friends[id] ? 'friend' : '';
+        const out = g ? !g.members.includes(mid) : false;
+        const vis = out || hidden.has(id) ? 'hid' : !g && distanceM(me, p) > R ? 'far' : '';
+        const cls = [r.base, ring, r.stale ? 'stale' : '', s.selectedId === id ? 'sel' : '', vis].join(' ');
         if (cls !== r.cls) { r.el.className = cls; r.cls = cls; }
+      });
+      const showM = s.showMarinas && s.scenario === 'sail';
+      marinas.forEach((m) => {
+        const cls = [m.base, !showM || hiddenMarinas.has(m.id) ? 'hid' : '', s.marinaId === m.id ? 'sel' : ''].join(' ');
+        if (cls !== m.cls) { m.el.className = cls; m.cls = cls; }
       });
       if (now - lastCluster > 300) { lastCluster = now; doClusters(); }
       if (now - lastCircle > 400 && map.getSource('radius')) {
         lastCircle = now;
         (map.getSource('radius') as maplibregl.GeoJSONSource).setData({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [circleRing(me, R)] } });
       }
-      box.current?.classList.toggle('show-names', map.getZoom() >= 13);
+      const z = map.getZoom();
+      box.current?.classList.toggle('show-names', z >= MAP.namesZoom);
+      box.current?.classList.toggle('show-marina-names', z >= MAP.marinaNamesZoom);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 
-    return () => { cancelAnimationFrame(raf); unsub(); map.remove(); mapRef.current = null; };
+    return () => { cancelAnimationFrame(raf); unsub(); map.remove(); mapRef.current = null; ready.current = false; };
   }, []);
 
-  useEffect(() => {
+  const easeToMe = (zoom?: boolean) => {
     const map = mapRef.current;
-    if (!map || !zoomSeq) return;
-    const me = posAt(USER_TRACK, clock.now());
-    map.easeTo({ center: [me.lon, me.lat], zoom: zoomForRadius(useApp.getState().radius), duration: 600 });
-  }, [zoomSeq]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !recenterSeq) return;
-    const me = posAt(USER_TRACK, clock.now());
-    map.easeTo({ center: [me.lon, me.lat], duration: 600 });
-  }, [recenterSeq]);
+    if (!map) return;
+    const s = useApp.getState();
+    const me = posAt(userTrack(s.scenario), clock.now());
+    map.easeTo({ center: [me.lon, me.lat], ...(zoom ? { zoom: zoomForRadius(s.radius * unitMetres(unitFor(s.scenario)), me.lat) } : {}), duration: 600 });
+  };
+  useEffect(() => { if (zoomSeq) easeToMe(true); }, [zoomSeq]);
+  useEffect(() => { if (recenterSeq) easeToMe(); }, [recenterSeq]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -177,12 +251,53 @@ export function MapView() {
     map.easeTo({ center: [focus.lon, focus.lat], zoom: Math.max(map.getZoom(), 12), duration: 600 });
   }, [focus]);
 
+  // "Show on map" from a group: fit the group's members (and you) on screen.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const apply = () => map.getLayer('seamark') && map.setLayoutProperty('seamark', 'visibility', layer === 'nautical' ? 'visible' : 'none');
-    if (map.isStyleLoaded()) apply(); else map.once('load', apply);
-  }, [layer]);
+    if (!map || !fitSeq) return;
+    const s = useApp.getState();
+    const g = s.groups.find((x) => x.id === s.mapGroup);
+    if (!g) return;
+    const t = clock.now();
+    const pts = mapPeople(s.scenario, s.extras).filter((p) => g.members.includes(memberId(p.id))).map((p) => posAt(TRACKS[p.id], t));
+    if (!pts.length) { s.showToast(`Nobody from ${g.name} is out right now`, 'info'); return; }
+    pts.push(posAt(userTrack(s.scenario), t));
+    const b = new maplibregl.LngLatBounds();
+    pts.forEach((p) => b.extend([p.lon, p.lat]));
+    map.fitBounds(b, { padding: 50, maxZoom: 13.5, duration: 700 });
+  }, [fitSeq]);
 
-  return <div ref={box} className="absolute inset-0" aria-label="Map of Kiel Fjord" />;
+  // Kiel Fjord <-> ski trip: swap markers and jump to the other place.
+  const firstScenario = useRef(true);
+  useEffect(() => {
+    if (firstScenario.current) { firstScenario.current = false; return; }
+    const map = mapRef.current;
+    if (!map) return;
+    syncRef.current();
+    const s = useApp.getState();
+    const me = posAt(userTrack(scenario), clock.now());
+    map.jumpTo({ center: [me.lon, me.lat], zoom: zoomForRadius(s.radius * unitMetres(unitFor(scenario)), me.lat) });
+  }, [scenario]);
+
+  useEffect(() => {
+    whenReady((map) => map.setLayoutProperty('seamark', 'visibility', layer === 'nautical' && scenario === 'sail' ? 'visible' : 'none'));
+  }, [layer, scenario]);
+
+  useEffect(() => {
+    whenReady((map) => {
+      const t = mapTheme(dark);
+      map.setPaintProperty('bg', 'background-color', t.background);
+      for (const [k, v] of Object.entries(t.raster)) map.setPaintProperty('osm', k as 'raster-opacity', v);
+      if (map.getLayer('radius-fill')) map.setPaintProperty('radius-fill', 'fill-color', t.radiusFill);
+      if (map.getLayer('radius-line')) map.setPaintProperty('radius-line', 'line-color', t.radiusLine);
+    });
+  }, [dark]);
+
+  // MapLibre's stylesheet sets `position: relative` on the map element, so the
+  // positioning lives on a wrapper and the map element just fills it.
+  return (
+    <div className="absolute inset-0">
+      <div ref={box} className="h-full w-full" aria-label={scenario === 'ski' ? 'Map of the ski area' : 'Map of Kiel Fjord'} />
+    </div>
+  );
 }

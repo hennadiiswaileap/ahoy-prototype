@@ -8,7 +8,7 @@
 
 export type ContactKind = 'whatsapp' | 'phone';
 export type BoatType = 'sail' | 'motor';
-export type SceneKind = 'day' | 'sunset' | 'dawn' | 'harbour' | 'lighthouse' | 'race';
+export type SceneKind = 'day' | 'sunset' | 'dawn' | 'harbour' | 'lighthouse' | 'race' | 'ski' | 'lift';
 
 export interface Route {
   center: [number, number]; // [lon, lat]
@@ -37,6 +37,8 @@ export interface Person {
   heading?: number;
   phase?: number;
   route: Route;
+  /** Set for people who aren't on a boat (ski trip scenario). Shown instead of boat and model. */
+  activity?: string;
 }
 
 export const USER_ROUTE: Route = { center: [10.21131, 54.43611], rx: 1654, ry: 1305, rot: 1.372 };
@@ -67,8 +69,6 @@ export const EXTRA_BOATS: (Omit<Person, 'route'> & { scale: number })[] = [
   { id: 'x2', name: 'Gesche', boat: 'Flaschenpost', model: 'Hanse 315', knots: 3.9, contact: 'whatsapp', home: 'Eckernförde', scene: 'dawn', hull: '#0B2545', dir: -1, reportEvery: 160, scale: 0.35 },
   { id: 'x3', name: 'Ole', boat: 'Kattegat', model: 'Dehler 38', knots: 5.0, contact: 'phone', home: 'Kerteminde', scene: 'sunset', hull: '#1D5C96', dir: 1, reportEvery: 200, scale: 0.75 },
 ];
-
-export const AVATAR_BG = ['#D6E5F2', '#F1E6D2', '#D5ECE1', '#FFE1D3', '#E3E0F0', '#DCE8F3'];
 
 export const DEMO_PHONE = '151 2345 6789';
 export const DEMO_CODE = '482913';
@@ -105,15 +105,21 @@ export const CHALLENGE = {
   ],
 };
 
-export const PORTS = [
-  { name: 'Strande', dist: '1.1 nm · 15 min', desc: 'Small, friendly harbour north of Schilksee with a sandy beach next door.', berths: '8 berths free tonight', scene: 'harbour' as SceneKind, hull: '#F4F1EA',
-    events: [{ dow: 'Sat', day: '3', title: 'Seafood market on the quay', when: 'Sat 3 Oct · 10:00' }], food: ['Strandkorb Kitchen', 'Zur Lotsenbank'] },
-  { name: 'Laboe', dist: '2.3 nm · 30 min', desc: 'Lively harbour on the east shore, lots of guest berths and a long promenade.', berths: '12 berths free tonight', scene: 'sunset' as SceneKind, hull: '#1D5C96',
-    events: [{ dow: 'Fri', day: '2', title: 'Wine evening at the harbour office', when: 'Fri 2 Oct · 18:30' }, { dow: 'Sat', day: '10', title: 'Laboe Harbour Festival', when: 'Sat 10 Oct · from 14:00' }], food: ['Fischküche am Steg', 'Café Ankerplatz'] },
-  { name: 'Kiel-Düsternbrook', dist: '5.4 nm · 1 h 15 min', desc: 'Right in town, walking distance to shops and the old harbour.', berths: '4 berths free tonight', scene: 'harbour' as SceneKind, hull: '#0B2545',
-    events: [{ dow: 'Thu', day: '8', title: 'Autumn regatta skipper briefing', when: 'Thu 8 Oct · 19:00' }], food: ['Bootshaus Bistro', 'Förde Deli'] },
-  { name: 'Eckernförde', dist: '12 nm · 2 h 40 min', desc: 'Charming town harbour at the end of the bay, famous for smoked sprats.', berths: '15 berths free tonight', scene: 'dawn' as SceneKind, hull: '#F4F1EA',
-    events: [{ dow: 'Sun', day: '4', title: 'Smokehouse open day', when: 'Sun 4 Oct · 11:00' }], food: ['Räucherkate am Hafen', 'Hafenstube'] },
+export interface Marina {
+  id: string;
+  name: string;
+  lon: number;
+  lat: number;
+  events: { title: string; when: string }[];
+}
+
+/** Marinas shown on the map. Positions are the harbours as mapped in OpenStreetMap. */
+export const MARINAS: Marina[] = [
+  { id: 'schilksee', name: 'Kiel-Schilksee', lon: 10.17158, lat: 54.43031, events: [{ title: 'Autumn regatta skipper briefing', when: 'Thu 19:00' }] },
+  { id: 'strande', name: 'Strande', lon: 10.17158, lat: 54.43595, events: [{ title: 'Seafood market on the quay', when: 'Sat 10:00' }] },
+  { id: 'laboe', name: 'Laboe', lon: 10.21623, lat: 54.40206, events: [{ title: 'Harbour festival', when: 'Sat 18:00' }, { title: 'Wine evening at the harbour office', when: 'Fri 18:30' }] },
+  { id: 'heikendorf', name: 'Heikendorf', lon: 10.19595, lat: 54.3749, events: [{ title: 'Open day at the fish smokehouse', when: 'Sun 11:00' }] },
+  { id: 'duesternbrook', name: 'Düsternbrook', lon: 10.15789, lat: 54.33876, events: [{ title: 'Haul-out crane day', when: 'Sat 08:00' }, { title: 'Sailing club quiz night', when: 'Wed 19:30' }] },
 ];
 
 export const CHATS = [
@@ -135,4 +141,19 @@ export const CHATS = [
       { text: 'Going out tomorrow?', at: '20:02', me: true },
       { text: 'Wind picks up after noon, leave early', at: '20:10' },
     ] },
+];
+
+// ---------------- Ski trip scenario (Scope B demo) ----------------
+
+/** The user's own loop on the slopes. A generic Alpine ski area; the app never names it. */
+export const SKI_USER_ROUTE: Route = { center: [10.985, 46.976], rx: 520, ry: 260, rot: 0.5 };
+export const SKI_USER_KNOTS = 5;
+
+/** Family Crew on the ski trip. IDs are the group member IDs with an `s-` prefix. */
+export const SKI_PEOPLE: Person[] = [
+  { id: 's-b1', name: 'Frauke', boat: '', model: '', activity: 'Skiing', knots: 7, contact: 'whatsapp', home: 'Kiel-Schilksee', scene: 'ski', hull: '#F4F1EA', dir: 1, reportEvery: 110, route: { center: [10.972, 46.972], rx: 650, ry: 300, rot: 1.0 } },
+  { id: 's-b3', name: 'Henrik', boat: '', model: '', activity: 'Snowboarding', knots: 8, contact: 'whatsapp', home: 'Sønderborg', scene: 'lift', hull: '#F4F1EA', dir: -1, reportEvery: 140, route: { center: [10.998, 46.981], rx: 480, ry: 340, rot: 2.2 } },
+  { id: 's-b5', name: 'Mette', boat: '', model: '', activity: 'Skiing', knots: 4, contact: 'phone', home: 'Svendborg', scene: 'ski', hull: '#F4F1EA', dir: 1, reportEvery: 90, route: { center: [10.979, 46.985], rx: 380, ry: 200, rot: 0.3 } },
+  { id: 's-m1', name: 'Gisela', boat: '', model: '', activity: 'At the mountain hut', knots: 0, staleMinutes: 6, contact: 'phone', home: 'Kiel', scene: 'lift', hull: '#F4F1EA', dir: 1, reportEvery: 0, route: { center: [10.9905, 46.9735], rx: 0, ry: 0, rot: 0 } },
+  { id: 's-m2', name: 'Paul', boat: '', model: '', activity: 'Skiing', knots: 9, contact: 'whatsapp', home: 'Kiel', scene: 'ski', hull: '#F4F1EA', dir: -1, reportEvery: 170, route: { center: [10.962, 46.962], rx: 900, ry: 380, rot: 0.8 } },
 ];

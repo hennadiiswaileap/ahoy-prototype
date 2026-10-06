@@ -2,17 +2,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
-import { APP, PALETTE } from './config';
+import { APP } from './config';
+import { applyResolvedTheme, installTheme, loadThemeMode, resolveTheme } from './theme';
 
-// Palette and app name come from src/config.ts
-const root = document.documentElement.style;
-root.setProperty('--color-navy', PALETTE.navy);
-root.setProperty('--color-sea', PALETTE.sea);
-root.setProperty('--color-sea-light', PALETTE.seaLight);
-root.setProperty('--color-mist', PALETTE.mist);
-root.setProperty('--color-signal', PALETTE.signal);
-root.setProperty('--color-success', PALETTE.success);
-root.setProperty('--color-muted', PALETTE.muted);
+// Colours come from src/theme.ts. Apply them before the first render so there's no flash.
+installTheme();
+applyResolvedTheme(resolveTheme(loadThemeMode()));
 document.title = APP.name;
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
